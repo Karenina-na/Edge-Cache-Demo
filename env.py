@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import os
+import gym
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -51,6 +52,78 @@ class ProbabilityMass(object):
     def Poisson(x, lam):
         """Poisson distribution"""
         return lam ** x * np.exp(-lam) / np.math.factorial(x)
+
+
+# two-dimensional action space,n is the number of states
+# if you want to change the distribution,
+# you should change the step function and sample function
+class Env(object):
+    def __init__(self, n, mu=2, sigma=3, lam=1, alpha=2, beta=3, p=0.5):
+        self.n = n
+        self.action_space = np.arange(n)
+        self.observation_space = np.arange(n)
+
+        # define the probability distribution
+        # continuous
+        self.mu = mu
+        self.sigma = sigma
+
+        self.lam = lam
+
+        self.alpha = alpha
+        self.beta = beta
+        # discrete
+        self.p = p
+        self.lam = lam
+
+        # state
+        self.state = 0
+
+    @staticmethod
+    def reward(action, target):
+        """
+        reward function
+        :param action:  action
+        :param target:  target
+        :return:    reward
+        """
+        # reward
+        return -np.abs(action - target)
+
+    def step(self, action):
+        """
+        step function
+        :param self:
+        :param action:  action
+        :return:    next state, reward
+        """
+        # distribution-----------------------------------------------change
+        target = ProbabilityDensity.Normal(self.state, self.mu, self.sigma)
+
+        # using action and target to calculate the reward
+        r = self.reward(action, target)
+        # sample the next state using the probability distribution
+        self.sample()
+        return self.state, r
+
+    def reset(self):
+        """
+        reset function
+        :param self:
+        :return:    state
+        """
+        self.sample()
+        return self.state
+
+    def sample(self):
+        """
+        sample a state
+        :return:
+        """
+        # distribution-----------------------------------------------change
+        p_list = [ProbabilityDensity.Normal(i, self.mu, self.sigma) for i in range(self.n)]
+        p_list = [p / sum(p_list) for p in p_list]
+        self.state = np.random.choice(range(self.n), p=p_list)
 
 
 def testProbabilityDensity():
@@ -131,6 +204,24 @@ def testDistribution():
     plt.show()
 
 
+def testEnv():
+    n = 20
+    env = Env(n,mu=10,sigma=1)
+    states = []
+    rewards = []
+    for i in range(500):
+        state, reward = env.step(0)
+        states.append(state)
+        rewards.append(reward)
+    import matplotlib.pyplot as plt
+    plt.subplot(211)
+    plt.plot(range(1, n + 1), [states.count(i) for i in range(1, n + 1)], 'r', linewidth=1, marker='o', markersize=2)
+    plt.subplot(212)
+    plt.plot(range(500), rewards, 'g', linewidth=1, marker='o', markersize=2)
+    plt.show()
+
+
 if __name__ == '__main__':
-    testProbabilityDensity()
-    testDistribution()
+    # testProbabilityDensity()
+    # testDistribution()
+    testEnv()
