@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import torch
 import numpy as np
 import os
@@ -56,12 +57,13 @@ class ProbabilityMass(object):
 
 # two-dimensional action space,n is the number of states
 # if you want to change the distribution,
-# you should change the step function and sample function
+# you should change the step function and the checkTheDistribution function
 class Env(object):
     def __init__(self, n, mu=2, sigma=3, lam=1, alpha=2, beta=3, p=0.5):
         self.n = n
         self.action_space = np.arange(n)
         self.observation_space = np.arange(n)
+        self.states = np.zeros(n)
 
         # define the probability distribution
         # continuous
@@ -79,6 +81,10 @@ class Env(object):
         # state
         self.state = 0
 
+        # done step
+        self.done_step = 0
+        self.MAX_STEP = 500
+
     @staticmethod
     def reward(action, target):
         """
@@ -88,7 +94,7 @@ class Env(object):
         :return:    reward
         """
         # reward
-        return -np.abs(action - target)
+        return -(np.abs(action - target))
 
     def step(self, action):
         """
@@ -103,8 +109,9 @@ class Env(object):
         # using action and target to calculate the reward
         r = self.reward(action, target)
         # sample the next state using the probability distribution
-        self.sample()
-        return self.state, r
+        # distribution-----------------------------------------------change
+        self.sample(ProbabilityDensity.Normal(self.observation_space, self.mu, self.sigma))
+        return self.state, r, self.done_step >= self.MAX_STEP
 
     def reset(self):
         """
@@ -112,18 +119,28 @@ class Env(object):
         :param self:
         :return:    state
         """
-        self.sample()
+        self.done_step = 0
         return self.state
 
-    def sample(self):
+    def sample(self, p=None):
         """
         sample a state
         :return:
         """
+        self.state = np.random.choice(self.observation_space, p=p)
+        self.states[self.state] += 1  # record the sample
+        self.done_step += 1
+
+    def checkTheDistribution(self):
+        """
+        check the distribution
+        :return:
+        """
         # distribution-----------------------------------------------change
-        p_list = [ProbabilityDensity.Normal(i, self.mu, self.sigma) for i in range(self.n)]
-        p_list = [p / sum(p_list) for p in p_list]
-        self.state = np.random.choice(range(self.n), p=p_list)
+        n = 1000
+        x = np.linspace(0, self.n-1, self.n)
+        y2 = ProbabilityDensity.Normal(x, self.mu, self.sigma)
+        return x, y2
 
 
 def testProbabilityDensity():
@@ -206,18 +223,63 @@ def testDistribution():
 
 def testEnv():
     n = 20
-    env = Env(n,mu=10,sigma=1)
+    env = Env(n, mu=10, sigma=1)
     states = []
     rewards = []
-    for i in range(500):
-        state, reward = env.step(0)
+    step = 50
+    for i in range(step):
+        state, reward, done = env.step(0)
         states.append(state)
         rewards.append(reward)
+    x, y = env.checkTheDistribution()
     import matplotlib.pyplot as plt
-    plt.subplot(211)
+    plt.subplot(311)
     plt.plot(range(1, n + 1), [states.count(i) for i in range(1, n + 1)], 'r', linewidth=1, marker='o', markersize=2)
-    plt.subplot(212)
-    plt.plot(range(500), rewards, 'g', linewidth=1, marker='o', markersize=2)
+    plt.title("env's distribution")
+    plt.subplot(312)
+    plt.plot(range(step), rewards, 'g', linewidth=1, marker='o', markersize=2)
+    plt.title("reward")
+    plt.subplot(313)
+    plt.plot(x, y, 'b', linewidth=1, marker='o', markersize=2)
+    plt.title("target distribution")
+    plt.show()
+
+
+def testReward():
+    n = 20
+    step = 100
+    env = Env(n, mu=10, sigma=1)
+    states = []
+    rewards = []
+    actions = []
+    prop = np.zeros(n)
+    s = env.reset()
+    for i in range(step):
+        action = ProbabilityDensity.Normal(s, mu=10, sigma=1)
+        prop[s] = action
+        state, reward, done = env.step(action)
+        rewards.append(reward)
+        states.append(state)
+        actions.append(action)
+        s = state
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(10, 9))
+    plt.subplot(511)
+    plt.plot(range(step), states, 'r', linewidth=1, marker='o', markersize=2)
+    plt.title("env's sample")
+    plt.subplot(512)
+    plt.plot(range(step), actions, 'r', linewidth=1, marker='o', markersize=2)
+    plt.title("test's sample")
+    plt.subplot(513)
+    plt.plot(range(step), rewards, 'r', linewidth=1, marker='o', markersize=2)
+    plt.title("rewards")
+    plt.subplot(514)
+    x, y = env.checkTheDistribution()
+    plt.plot(x, y, 'r', linewidth=1, marker='o', markersize=2)
+    plt.title("env's distribution")
+    plt.subplot(515)
+    plt.plot(range(n), prop, 'r', linewidth=1, marker='o', markersize=2)
+    plt.title("prop's distribution")
     plt.show()
 
 
@@ -225,3 +287,4 @@ if __name__ == '__main__':
     # testProbabilityDensity()
     # testDistribution()
     testEnv()
+    # testReward()

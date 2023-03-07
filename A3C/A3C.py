@@ -1,23 +1,32 @@
+import array
+
 import torch
 import torch.multiprocessing as mp
 import numpy as np
-import gym
 import os
 from Agent import Net
+from env import Env
 
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 os.environ["OMP_NUM_THREADS"] = "1"
 
 # A3C
-UPDATE_GLOBAL_ITER = 5  # update global network every 5 episodes
+UPDATE_GLOBAL_ITER = 10  # update global network every 5 episodes
 GAMMA = 0.9  # reward discount
-MAX_EP = 1800  # maximum episode
+MAX_EP = 2000  # maximum episode
 PARAMETER_NUM = mp.cpu_count()  # the number of parameters
+ENTROPY = 0.001  # entropy coefficient
+LEARNING_RATE = 0.1  # learning rate
+BETAS = (0.92, 0.999)  # Adam optimizer parameters
 
-env = gym.make('CartPole-v1', render_mode='rgb_array')
-N_S = env.observation_space.shape[0]
-N_A = env.action_space.n
-env.close()
+# number of edge cache
+n = 20
+
+N_S = 1  # states dimension
+N_A = 1  # actions dimension
+
+# env
+env = Env(n, mu=10, sigma=1)
 
 
 class SharedAdam(torch.optim.Adam):
@@ -41,15 +50,12 @@ class SharedAdam(torch.optim.Adam):
                 state['exp_avg_sq'].share_memory_()
 
 
-def v_wrap(np_array, dtype=np.float32):
+def v_wrap(array):
     """
     Wrap the numpy array into a torch tensor
-    :param np_array:
-    :param dtype:
     :return:
     """
-    if np_array.dtype != dtype:
-        np_array = np_array.astype(dtype)
+    np_array = np.array(array, dtype=np.float32)
     return torch.from_numpy(np_array)
 
 
@@ -78,13 +84,12 @@ def record(global_ep, global_ep_r, ep_r, res_queue, name):
     )
 
 
-def push_and_pull_net(opt, lnet, gnet, done, s_, bs, ba, br, gamma):
+def push_and_pull_net(opt, lnet, gnet, s_, bs, ba, br, gamma):
     """
     Push the gradients to the global network and pull the parameters from the global network
     :param opt: the optimizer
     :param lnet:    the local network
     :param gnet:    the global network
-    :param done:    whether the episode is done
     :param s_:  the next state
     :param bs:  the state
     :param ba:  the action
@@ -92,11 +97,8 @@ def push_and_pull_net(opt, lnet, gnet, done, s_, bs, ba, br, gamma):
     :param gamma:   the discount factor
     :return:    None
     """
-    if done:
-        v_s_ = 0.  # terminal
-    else:
-        # get the value of the next state, add the batch dimension
-        v_s_ = lnet.forward(v_wrap(s_[None, :]))[-1].data.numpy()[0, 0]
+    # get the value of the next state, add the batch dimension
+    v_s_ = lnet.forward(v_wrap([[s_]]))[-1].data.numpy()[0, 0]
 
     # calculate the advantage   R(t) + gamma * V(s_(t+1)) - V(s_t)
     buffer_v_target = []
@@ -106,25 +108,27 @@ def push_and_pull_net(opt, lnet, gnet, done, s_, bs, ba, br, gamma):
     buffer_v_target.reverse()
 
     # calculate the loss
-    loss = lnet.loss_func(
-        v_wrap(np.vstack(bs)),
-        v_wrap(np.array(ba), dtype=np.int64) if ba[0].dtype == np.int64 else v_wrap(np.vstack(ba)),
-        v_wrap(np.array(buffer_v_target)[:, None]))
+    bs = np.array(bs).reshape(-1, 1)
+    ba = np.array(ba).reshape(-1, 1)
+    buffer_v_target = np.array(buffer_v_target).reshape(-1, 1)
+
+    loss = lnet.loss_func(v_wrap(bs), v_wrap(ba), v_wrap(buffer_v_target))
 
     # calculate local gradients
     opt.zero_grad()
     loss.backward()
+    opt.step()
+
     # push the gradients to the global network
     for lp, gp in zip(lnet.parameters(), gnet.parameters()):
-        gp._grad = lp.grad
-    opt.step()
+        gp.grad = lp.grad
 
     # pull global parameters
     lnet.load_state_dict(gnet.state_dict())
 
 
 class Worker(mp.Process):
-    def __init__(self, gnet, opt, global_ep, global_ep_r, res_queue, name):
+    def __init__(self, gnet, opt, global_ep, global_ep_r, global_sam, res_queue, name):
         """
         :param gnet:            global network
         :param opt:             optimizer
@@ -135,10 +139,10 @@ class Worker(mp.Process):
         """
         super(Worker, self).__init__()
         self.name = 'w%02i' % name
-        self.g_ep, self.g_ep_r, self.res_queue = global_ep, global_ep_r, res_queue
+        self.g_ep, self.g_ep_r, self.glo_sam, self.res_queue = \
+            global_ep, global_ep_r, global_sam, res_queue
         self.gnet, self.opt = gnet, opt
-        self.lnet = Net(N_S, N_A)  # local network
-        self.env = gym.make('CartPole-v1', render_mode='rgb_array').unwrapped
+        self.lnet = Net(N_S, N_A, entropy_beta=ENTROPY)  # local network
 
     def run(self):
         """
@@ -147,27 +151,23 @@ class Worker(mp.Process):
         """
         total_step = 1
         while self.g_ep.value < MAX_EP:
-            s, _ = self.env.reset()
+            s = env.reset()
             buffer_s, buffer_a, buffer_r = [], [], []
             ep_r = 0.
             while True:
-                if self.name == 'w00':  # only one worker can show the environment
-                    self.env.render()
+                self.glo_sam[s] += 1
                 # choose action
-                a = self.lnet.choose_action(v_wrap(s[None, :]))
+                a = self.lnet.sample(v_wrap([[s]]))
                 # take action
-                s_, r, done, _, _ = self.env.step(a)
-                # record the transition
-                if done:
-                    r = -1
+                s_, r, done = env.step(a.detach().numpy()[0])
                 ep_r += r
-                buffer_a.append(a)
+                buffer_a.append(a.detach().numpy()[0])
                 buffer_s.append(s)
                 buffer_r.append(r)
                 # update global and assign to local net
-                if total_step % UPDATE_GLOBAL_ITER == 0 or done:  # update global and assign to local net
+                if total_step % UPDATE_GLOBAL_ITER == 0:  # update global and assign to local net
                     # sync
-                    push_and_pull_net(self.opt, self.lnet, self.gnet, done, s_, buffer_s, buffer_a, buffer_r, GAMMA)
+                    push_and_pull_net(self.opt, self.lnet, self.gnet, s_, buffer_s, buffer_a, buffer_r, GAMMA)
                     buffer_s, buffer_a, buffer_r = [], [], []
                     if done:  # done and print information
                         record(self.g_ep, self.g_ep_r, ep_r, self.res_queue, self.name)
@@ -180,23 +180,32 @@ class Worker(mp.Process):
 
 
 if __name__ == "__main__":
-    gnet = Net(N_S, N_A)  # global network
+    import matplotlib.pyplot as plt
+
+    gnet = Net(N_S, N_A, entropy_beta=0)  # global network
+    start = []
+    for i in range(n):
+        a = gnet.sample(v_wrap([[i]]))
+        start.append(a.detach().numpy()[0])
+
     gnet.share_memory()  # share the global parameters in multiprocessing
-    opt = SharedAdam(gnet.parameters(), lr=1e-4, betas=(0.92, 0.999))  # global optimizer
+    opt = SharedAdam(gnet.parameters(), lr=LEARNING_RATE, betas=BETAS)  # global optimizer
 
     # global_ep, global_ep_r, res_queue are used to record the result,
     # global_ep is the global episode, global_ep_r is the global episode reward,
     # res_queue is used to record the result
-    global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
+    global_ep, global_ep_r, global_sample, res_queue = \
+        mp.Value('i', 0), mp.Value('d', 0.), mp.Array("i", n), mp.Queue()
 
     # parallel training
-    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i) for i in range(PARAMETER_NUM)]
+    workers = [Worker(gnet, opt, global_ep, global_ep_r, global_sample, res_queue, i) for i in range(PARAMETER_NUM)]
 
     # start training
     [w.start() for w in workers]
 
     # record episode reward to plot
     res = []
+    global_sample = array.array('i', global_sample)
 
     # change structure of the result queue
     while True:
@@ -212,19 +221,37 @@ if __name__ == "__main__":
     print("Finished")
 
     # show training result
-    env = gym.make('CartPole-v1', render_mode='human').unwrapped
-    s, _ = env.reset()
-    while True:
-        env.render()
-        a = gnet.choose_action(v_wrap(s[None, :]))
-        s, r, done, _, _ = env.step(a)
-        if done:
-            break
+    score = []
+    for i in range(n):
+        a = gnet.sample(v_wrap([[i]]))
+        score.append(a.detach().numpy()[0])
 
     # plot the result
     import matplotlib.pyplot as plt
 
-    plt.plot(res)
-    plt.ylabel('Moving average ep reward')
+    # plot the result
+    plt.rcParams['font.size'] = 16
+    plt.figure(figsize=(20, 25))
+    plt.subplot(5, 1, 1)
+    plt.plot(start, linewidth=1, marker='o', markersize=2)
+    plt.title("DRL initial distribution")
+
+    plt.subplot(5, 1, 2)
+    plt.plot(score, linewidth=1, marker='o', markersize=2)
+    plt.title("DRL distribution")
+
+    x, y = env.checkTheDistribution()
+    plt.subplot(5, 1, 3)
+    plt.plot(x, y, 'b', linewidth=1, marker='o', markersize=2)
+    plt.title('Probability of the distribution')
+
+    plt.subplot(5, 1, 4)
+    plt.plot(range(len(global_sample)), global_sample.tolist())
+    plt.title('env sample times')
+
+    plt.subplot(5, 1, 5)
+    plt.plot(range(len(res)), res)
+    plt.ylabel('average ep reward')
     plt.xlabel('Step')
+    plt.title('each step average reward')
     plt.show()
