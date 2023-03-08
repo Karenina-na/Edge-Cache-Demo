@@ -14,8 +14,8 @@ os.environ["OMP_NUM_THREADS"] = "1"
 UPDATE_GLOBAL_ITER = 10  # update global network every 5 episodes
 GAMMA = 0.9  # reward discount
 MAX_EP = 2000  # maximum episode
-PARAMETER_NUM = mp.cpu_count()  # the number of parameters
-ENTROPY = 0.001  # entropy coefficient
+PARAMETER_NUM = 15  # the number of parameters
+ENTROPY = 0.05  # entropy coefficient
 LEARNING_RATE = 0.1  # learning rate
 BETAS = (0.92, 0.999)  # Adam optimizer parameters
 

@@ -57,33 +57,32 @@ class Net(nn.Module):
         set_init(self.mu)
         set_init(self.sigma)
 
-
         self.distribution = torch.distributions.Normal  # action distribution
 
     def forward(self, x):
         self.train()
 
         # cli
-        x = self.cli1(x)
-        x = self.cli2(x)
+        cli = self.cli1(x)
+        cli = self.cli2(cli)
 
         # policy
-        p = self.policy_tan(x)
+        p = self.policy_tan(cli)
         p = self.policy1(p)
         p = self.policy2(p)
         p = self.policy_tan(p)
         actions = self.policy(p)
 
+        # mu sigma
+        mu = 2 * torch.tanh(self.mu(cli))
+        sigma = F.softplus(self.sigma(cli)) + 0.00001  # avoid 0
+
         # value
-        v = self.value_tan(x)
+        v = self.value_tan(cli)
         v = self.value1(v)
         v = self.value2(v)
         v = self.value_tan(v)
         values = self.value(v)
-
-        # mu sigma
-        mu = 2 * torch.tanh(self.mu(x))
-        sigma = F.softplus(self.sigma(x)) + 0.00001  # avoid 0
 
         return actions, values, mu, sigma
 
@@ -97,12 +96,12 @@ class Net(nn.Module):
         actions, _, _, _ = self.forward(state)
         return actions
 
-    def loss_func(self, state, action, v_s):
+    def loss_func(self, state, action, target):
         """
         loss function
         :param state:   state
         :param action:   action
-        :param v_s:     value
+        :param target:     target
         :return:    loss
         """
         self.train()
@@ -110,21 +109,22 @@ class Net(nn.Module):
         actions, values, mu, sigma = self.forward(state)
 
         # calculate TD error
-        td = v_s - values
+        td = target - values
         # critic loss
         c_loss = td.pow(2)
 
         # use the distribution to calculate the loss
-        m = self.distribution(mu, sigma)
-        log_prob = m.log_prob(action)
-        entropy = 0.5 + 0.5 * math.log(2 * math.pi) + torch.log(m.scale)  # exploration
+        dist = torch.distributions.Normal(mu, sigma)
+        log_probs = dist.log_prob(action).sum(1, keepdim=True)
+        entropy = dist.entropy()
+        a_loss = -log_probs * td.detach()
 
-        exp_v = log_prob * td.detach() + self.entropy_beta * entropy
-        a_loss = -exp_v
+        # compute entropy loss
+        entropy_loss = -self.entropy_beta * entropy
 
         # total loss-mean
-        total_loss = (a_loss + c_loss).mean()
-        return total_loss
+        total_loss = c_loss + a_loss + entropy_loss
+        return total_loss.mean()
 
 
 if __name__ == '__main__':
