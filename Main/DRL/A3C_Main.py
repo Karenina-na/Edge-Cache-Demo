@@ -126,16 +126,17 @@ GAMMA = 0.9
 MAX_EP = 3000
 LEARNING_RATE = 1e-2
 BETAS = (0.92, 0.999)
-MODEL_PATH = "None"
+MODEL_PATH = "../../Result/checkpoints"
 A_dim = 400  # 缓存内容索引大小
 S_dim = 20  # 缓存空间大小
 A_number = 20  # 缓存空间大小
 Request_number = 1000  # 一次请求的请求数量
 A = 0.6
+Stop_number = 10000 # 环境请求最大数量
 
 
 def train():
-    env = Env(S_dim, A_dim, A, Request_number)
+    env = Env(S_dim, A_dim, A, Request_number, Stop_number)
     N_S = S_dim
     N_A = A_dim
 
@@ -145,7 +146,7 @@ def train():
     global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
 
     # 初始
-    env_test = Env(S_dim, A_dim, A, Request_number)
+    env_test = Env(S_dim, A_dim, A, Request_number, Stop_number)
     s, _ = env_test.reset()
     while True:
         a = gnet.choose_action(v_wrap(s[None, :]))
@@ -175,13 +176,13 @@ def train():
     plt.plot(res)
     plt.ylabel('Moving average ep reward')
     plt.xlabel('Step')
-    # plt.show()
+    plt.show()
 
     print("game over")
     print("Init network %f" % (env_test.cache / env_test.total))
 
     # 玩游戏
-    env_test = Env(S_dim, A_dim, A, Request_number)
+    env_test = Env(S_dim, A_dim, A, Request_number, Stop_number)
     s, _ = env_test.reset()
     while True:
         a = gnet.choose_action(v_wrap(s[None, :]))
@@ -193,21 +194,23 @@ def train():
     print("last network %f" % (env_test.cache / env_test.total))
 
     # 保存模型
-    # gnet.save_model()
+    gnet.save_model()
 
 
 def test():
-    env_test = gym.make(game_name, render_mode="human")
-    N_S = env_test.observation_space.shape[0]
-    N_A = env_test.action_space.n
-    gnet = Agent(N_S, N_A, GAMMA, MODEL_PATH)  # global network
+    env_test = Env(S_dim, A_dim, A, Request_number, Stop_number)
+    N_S = S_dim
+    N_A = A_dim
+    gnet = Agent(N_S, N_A, GAMMA, MODEL_PATH, A_number)  # global network
     s, _ = env_test.reset()
     while True:
         a = gnet.choose_action(v_wrap(s[None, :]))
-        s, _, d, _, _ = env_test.step(a)
+        s, _, d, _, _ = env_test.step(a[0])
         if d:
             break
     env_test.close()
+
+    print("last network %f" % (env_test.cache / env_test.total))
 
 
 if __name__ == "__main__":

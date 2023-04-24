@@ -4,7 +4,7 @@ import numpy as np
 
 
 class Env(gym.Env):
-    def __init__(self, S_dim, a_dim, a, request_number):
+    def __init__(self, S_dim, a_dim, a, request_number, stop_number):
         self.observation_space = np.ones(S_dim)
         self.action_space = np.arange(a_dim)
         self.a = a
@@ -12,6 +12,7 @@ class Env(gym.Env):
         self.request_number = request_number
         self.cache = 0
         self.total = 0
+        self.stop_number = stop_number
 
     def step(self, action):
 
@@ -40,7 +41,7 @@ class Env(gym.Env):
         self.request = requests
 
         # 结束条件
-        if self.total >= 1000:
+        if self.total >= self.stop_number:
             return self.observation_space, reward, True, False, False
         return self.observation_space, reward, False, False, False
 
@@ -55,6 +56,8 @@ class Env(gym.Env):
             index = np.random.choice(np.arange(len(self.observation_space)), p=distribution)
             requests.append(index)
         self.request = requests
+        self.cache = 0
+        self.total = 0
         return self.observation_space, False
 
     def render(self):
