@@ -29,6 +29,7 @@ class Env(gym.Env):
         self.observation_space = np.squeeze(action)
 
         # 生成新的请求
+        # -----------------------------------------------------------------------------distribution#
         distribution = ProbabilityDensity.Zipf(np.arange(len(self.observation_space)),
                                                self.a, len(self.observation_space))
         # 归一化
@@ -46,6 +47,7 @@ class Env(gym.Env):
         return self.observation_space, reward, False, False, False
 
     def reset(self):
+        # -----------------------------------------------------------------------------distribution#
         distribution = ProbabilityDensity.Zipf(np.arange(len(self.observation_space)),
                                                self.a, len(self.observation_space))
         # 归一化

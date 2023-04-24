@@ -210,7 +210,7 @@ def test():
             break
     env_test.close()
 
-    print("last network %f" % (env_test.cache / env_test.total))
+    print("cache hit ratio %f" % (env_test.cache / env_test.total))
 
 
 if __name__ == "__main__":
