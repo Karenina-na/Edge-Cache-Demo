@@ -1,9 +1,9 @@
 import torch
 import torch.multiprocessing as mp
-import gym
 import os
 from Models.Agent.A3C_Agent import Agent, SharedAdam
 import numpy as np
+from Env.env import Env
 
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -37,7 +37,8 @@ class Worker(mp.Process):
         self.g_ep, self.g_ep_r, self.res_queue = g_ep, g_ep_r, result_queue
         self.gnet, self.opt = global_net, optimizer
         # 创建局部网络
-        self.lnet = Agent(global_net.s_dim, global_net.a_dim, GAMMA, model_path=MODEL_PATH)
+        self.lnet = Agent(global_net.s_dim, global_net.a_dim, GAMMA, model_path=MODEL_PATH,
+                          a_number=global_net.a_number)
         self.env = env
 
     def run(self):
@@ -49,22 +50,20 @@ class Worker(mp.Process):
         while self.g_ep.value < MAX_EP:
             state, _ = self.env.reset()
             # 一局游戏的数据
-            buffer_s, buffer_a, buffer_r = [], [], []
+            buffer_s, buffer_a, buffer_r, buffer_n_s = [], [], [], []
             ep_r = 0.
             while True:
                 # 选择动作并执行
                 action = self.lnet.choose_action(v_wrap(state[None, :]))
-                next_state, reward, done, _, _ = self.env.step(action)
-                # 游戏结束，给予惩罚
-                if done:
-                    reward = -1
+                next_state, reward, done, _, _ = self.env.step(action[0])
                 ep_r += reward
-                buffer_a.append(action)
+                buffer_a.append(action[0])
                 buffer_s.append(state)
                 buffer_r.append(reward)
+                buffer_n_s.append(next_state)
                 # 更新全局网络
                 if total_step % UPDATE_GLOBAL_ITER == 0 or done:
-                    push_and_pull(self.opt, self.lnet, self.gnet, done, buffer_s, buffer_a, buffer_r, next_state)
+                    push_and_pull(self.opt, self.lnet, self.gnet, done, buffer_s, buffer_a, buffer_r, buffer_n_s)
                     buffer_s, buffer_a, buffer_r = [], [], []
                     # 若游戏结束，退出循环
                     if done:
@@ -82,7 +81,7 @@ def v_wrap(np_array, dtype=np.float32):
     return torch.from_numpy(np_array)
 
 
-def push_and_pull(optimizer: torch.optim, local_net: Agent, global_net: Agent, done, bs, ba, br, next_state):
+def push_and_pull(optimizer: torch.optim, local_net: Agent, global_net: Agent, done, bs, ba, br, n_bs):
     """
     更新全局网络
     :param optimizer: 优化器
@@ -92,34 +91,27 @@ def push_and_pull(optimizer: torch.optim, local_net: Agent, global_net: Agent, d
     :param bs: 一个batch存储的状态
     :param ba: 一个batch存储的动作
     :param br: 一个batch存储的奖励
-    :param next_state: 下一个状态
+    :param n_bs: 一个batch存储的下一个状态
     :return:
     """
-    if done:
-        value_next_state = 0.  # terminal
-    else:
-        value_next_state = local_net.forward(v_wrap(next_state[None, :]))[-1].data.numpy()[0, 0]
-
-    # 计算td误差
-    buffer_v_target = []  # 存储每一步的td误差
-    for reward in br[::-1]:
-        value_next_state = reward + GAMMA * value_next_state
-        buffer_v_target.append(value_next_state)
-    buffer_v_target.reverse()
 
     # 计算损失函数
+    ba = np.array(ba)
     actor_loss, critic_loss = \
         local_net.loss_func(
             v_wrap(np.vstack(bs)),
             v_wrap(np.array(ba), dtype=np.int64) if ba[0].dtype == np.int64 else v_wrap(np.vstack(ba)),
-            v_wrap(np.array(buffer_v_target)[:, None]))
+            v_wrap(np.array(br)),
+            v_wrap(np.array(n_bs)),
+            GAMMA
+        )
 
     # loss = actor_loss + critic_loss
+    loss = actor_loss + critic_loss
 
     # 反向传播，和全局网络同步
     optimizer.zero_grad()
-    critic_loss.backward(retain_graph=True)  # 保留计算图
-    actor_loss.backward()
+    loss.backward()
     for lp, gp in zip(local_net.parameters(), global_net.parameters()):
         gp._grad = lp.grad
     optimizer.step()
@@ -128,25 +120,39 @@ def push_and_pull(optimizer: torch.optim, local_net: Agent, global_net: Agent, d
     local_net.load_state_dict(global_net.state_dict())
 
 
-UPDATE_GLOBAL_ITER = 10
-PARALLEL_NUM = mp.cpu_count()
+UPDATE_GLOBAL_ITER = 20
+PARALLEL_NUM = 1
 GAMMA = 0.9
 MAX_EP = 3000
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 1e-2
 BETAS = (0.92, 0.999)
-MODEL_PATH = "../../Result/checkpoints"
-game_name = "CartPole-v1"
+MODEL_PATH = "None"
+A_dim = 100  # 缓存内容索引大小
+S_dim = 10  # 缓存空间大小
+A_number = 10  # 缓存空间大小
+Request_number = 200  # 一次请求的请求数量
+A = 0.1
 
 
 def train():
-    env = gym.make(game_name, render_mode="rgb_array")
-    N_S = env.observation_space.shape[0]
-    N_A = env.action_space.n
+    env = Env(S_dim, A_dim, A, Request_number)
+    N_S = S_dim
+    N_A = A_dim
 
-    gnet = Agent(N_S, N_A, GAMMA, MODEL_PATH)  # global network
+    gnet = Agent(N_S, N_A, GAMMA, MODEL_PATH, A_number)  # global network
     gnet.share_memory()  # share the global parameters in multiprocessing
     opt = SharedAdam(gnet.parameters(), lr=LEARNING_RATE, betas=BETAS)  # global optimizer
     global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
+
+    # 初始
+    env_test = Env(S_dim, A_dim, A, Request_number)
+    s, _ = env_test.reset()
+    while True:
+        a = gnet.choose_action(v_wrap(s[None, :]))
+        s, _, d, _, _ = env_test.step(a[0])
+        if d:
+            break
+    env_test.close()
 
     # 并发训练
     workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i, env) for i in range(PARALLEL_NUM)]
@@ -171,18 +177,23 @@ def train():
     plt.xlabel('Step')
     # plt.show()
 
+    print("game over")
+    print("Init network %f" % (env_test.cache / env_test.total))
+
     # 玩游戏
-    env_test = gym.make('CartPole-v1', render_mode='human')
+    env_test = Env(S_dim, A_dim, A, Request_number)
     s, _ = env_test.reset()
     while True:
         a = gnet.choose_action(v_wrap(s[None, :]))
-        s, _, d, _, _ = env_test.step(a)
+        s, _, d, _, _ = env_test.step(a[0])
         if d:
             break
     env_test.close()
 
+    print("last network %f" % (env_test.cache / env_test.total))
+
     # 保存模型
-    gnet.save_model()
+    # gnet.save_model()
 
 
 def test():

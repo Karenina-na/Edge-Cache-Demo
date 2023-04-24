@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-import gym
+from Env.env import Env
 from Models.Agent.DDPG_Agent import ReplayBuffer, Agent
 
 
@@ -8,10 +8,6 @@ def train():
     # -------------------------------------- #
     # 模型构建
     # -------------------------------------- #
-    env = gym.make(env_name, render_mode="rgb_array")
-    n_states = env.observation_space.shape[0]  # 状态数 2
-    n_actions = env.action_space.shape[0]  # 动作数 1
-    action_bound = env.action_space.high[0]  # 动作的最大值 1.0
     # 经验回放池实例化
     replay_buffer = ReplayBuffer(capacity=buffer_size)
     # 模型实例化
@@ -67,11 +63,11 @@ def train():
         # 打印回合信息
         print(f'episode:{i}, return:{episode_return}, mean_return:{np.mean(return_list[-10:])}')
 
-    # 关闭动画窗格
-    env.close()
-
-    # 保存模型
-    agent.save_model()
+    # # 关闭动画窗格
+    # env.close()
+    #
+    # # 保存模型
+    # agent.save_model()
 
 
 def test():
@@ -123,6 +119,20 @@ buffer_size = 1000  # 经验回放池容量
 buffer_min_size = 500  # 经验回放池最小容量
 buffer_batch_size = 32  # 经验回放池采样批次大小
 
+S_dim = 50
+A_dim = 300
+A_number = 50
+Request_number = 100
+A = 0.1
+env = Env(S_dim, A_dim, A, Request_number)
+
+N_S = S_dim
+N_A = A_dim
+
+n_states = S_dim  # 状态数 2
+n_actions = A_dim  # 动作数 1
+action_bound = env.action_space.high[0]  # 动作的最大值 1.0
+
 if __name__ == "__main__":
-    # train()
-    test()
+    train()
+    # test()
