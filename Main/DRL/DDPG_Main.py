@@ -133,7 +133,7 @@ critic_lr = 1e-1  # 价值网络学习率
 tau = 0.5  # 软更新系数
 gamma = 0.9  # 折扣因子
 buffer_size = 20000  # 经验回放池容量
-buffer_min_size = 500  # 经验回放池最小容量
+buffer_min_size = 64  # 经验回放池最小容量
 buffer_batch_size = 32  # 经验回放池采样批次大小
 
 A_dim = 400  # 缓存内容索引大小

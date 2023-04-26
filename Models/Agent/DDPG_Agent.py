@@ -159,7 +159,7 @@ class Agent(nn.Module):
         # 价值目标网络获取下一时刻状态选出的动作价值 [b,n_states+n_actions]-->[b,1]
         next_q_value = self.target_critic(next_states, next_q_actions)
         # 当前时刻的动作价值的目标值 [b,1]
-        q_targets = rewards + self.gamma * next_q_value * (1 - dones)
+        q_targets = rewards + self.gamma * next_q_value
 
         # 当前时刻动作价值的预测值 [b,n_states+n_actions]-->[b,1]
         q_values = self.critic(states, action)
@@ -171,12 +171,13 @@ class Agent(nn.Module):
         critic_loss.backward()
         self.critic_optimizer.step()
 
-        # 当前状态的每个动作的价值 [b, n_actions]
-        actor_q_values = self.actor(states)
+        # 当前状态的每个动作的策略 [b, n_actions]
+        actor_q_actions = self.actor(states)
         # 当前状态选出的动作价值 [b,1]
-        score = self.critic(states, actor_q_values)
+        score = self.critic(states, actor_q_actions)
         # 计算损失 loss=-score
         actor_loss = -torch.mean(score)
+
         # 策略网络梯度
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
