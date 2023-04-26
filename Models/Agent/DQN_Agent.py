@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import random
+from itertools import combinations
 
 
 # 经验池
@@ -15,9 +16,9 @@ class ReplayMemory:
         self.MEMORY_SIZE = 10000
         self.BATCH_SIZE = 64
         self.all_s = np.empty(shape=(self.MEMORY_SIZE, self.n_s), dtype=np.float64)
-        self.all_a = np.random.randint(low=0, high=self.n_a, size=self.MEMORY_SIZE, dtype=np.uint8)
+        self.all_a = np.random.randint(low=0, high=self.n_a, size=self.MEMORY_SIZE, dtype=np.int)
         self.all_r = np.empty(self.MEMORY_SIZE, dtype=np.float64)
-        self.all_done = np.random.randint(low=0, high=2, size=self.MEMORY_SIZE, dtype=np.uint8)
+        self.all_done = np.random.randint(low=0, high=2, size=self.MEMORY_SIZE, dtype=np.int)
         self.all_s_ = np.empty(shape=(self.MEMORY_SIZE, self.n_s), dtype=np.float64)
 
         self.count = 0
@@ -62,6 +63,19 @@ class ReplayMemory:
         return batch_s_tensor, batch_a_tensor, batch_r_tensor, batch_done_tensor, batch_s__tensor
 
 
+class ActionSpace:
+    def __init__(self, n_action, action_space, ):
+        self.action_space = np.arange(action_space)  # 动作空间
+
+        self.dic = []  # 存储编号-枚举的动作
+
+        comb = combinations(self.action_space, n_action)
+        for i in comb:
+            self.dic.append(i)
+
+        self.n_action = len(self.dic)  # 动作空间的大小
+
+
 # 神经网络
 class DQN(nn.Module):
     def __init__(self, n_input, n_output):
@@ -69,9 +83,9 @@ class DQN(nn.Module):
         in_features = n_input
 
         self.net = nn.Sequential(
-            nn.Linear(in_features, 64),
+            nn.Linear(in_features, 128),
             nn.Tanh(),
-            nn.Linear(64, n_output))
+            nn.Linear(128, n_output))
 
     def forward(self, x):
         return self.net(x)
@@ -100,7 +114,7 @@ class Agent:
         self.model_path = model_path
 
         # 回报折扣率
-        self.GAMMA = 0.99
+        self.GAMMA = 0.9
 
         # 学习率
         self.learning_rate = 1e-3
@@ -124,7 +138,6 @@ class Agent:
 
             self.target_net.load_state_dict(self.online_net.state_dict())
             self.optimizer = torch.optim.Adam(self.online_net.parameters(), lr=self.learning_rate)
-
         else:
             self.online_net = DQN(self.n_input, self.n_output)
             self.online_net.load_state_dict(torch.load(model_path + "/dqn.pth"))

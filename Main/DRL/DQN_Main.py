@@ -1,19 +1,20 @@
-import gym
+from Env.env import  Env
 import numpy as np
 import torch
 import torch.nn as nn
 import random
-from Models.Agent.DQN_Agent import Agent
+from Models.Agent.DQN_Agent import Agent, ActionSpace
 
 
 def train():
-    env = gym.make(GAME, render_mode='rgb_array')
+    env = Env(S_dim, A_dim, A, Request_number, Stop_number)
+    action_space = ActionSpace(A_number, A_dim)
 
     s, info = env.reset()
 
-    n_state = len(s)
-    n_action = env.action_space.n
-
+    n_state = S_dim
+    n_action = action_space.n_action
+    print(n_action)
     """Generate agents"""
 
     agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train', model_path=model_path)
@@ -21,6 +22,18 @@ def train():
     """Main Training Loop"""
 
     REWARD_BUFFER = np.zeros(shape=n_episode)
+
+    # 初始
+    agent_test = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train')
+    env_test = Env(S_dim, A_dim, A, Request_number, Stop_number)
+    s, _ = env_test.reset()
+    while True:
+        a_index = agent_test.online_net.act(s)
+        a = action_space.dic[a_index]
+        s, _, d, _, _ = env_test.step(a)
+        if d:
+            break
+    env_test.close()
 
     for episode_i in range(n_episode):
 
@@ -36,15 +49,18 @@ def train():
             # 概率epsilon随机选择动作，概率1-epsilon选择最优动作 online网络
             random_sample = random.random()
             if random_sample <= epsilon:
-                a = env.action_space.sample()
+                max_index = len(action_space.dic) - 1
+                a_index = random.randint(0, max_index)
+                a = action_space.dic[a_index]
             else:
-                a = agent.online_net.act(s)
+                a_index = agent.online_net.act(s)
+                a = action_space.dic[a_index]
 
             # 执行动作
             s_, r, done, trunk, info = env.step(a)  # trunk,info will not be used
 
             # 记录经验
-            agent.memo.add_memo(s, a, r, done, s_)
+            agent.memo.add_memo(s, a_index, r, done, s_)
 
             # 更新状态
             s = s_
@@ -64,7 +80,6 @@ def train():
 
             # 计算 target Q(t+1)
             target_q_values = agent.target_net(batch_s_)
-
             # 计算 target max Q(t+1)
             max_target_q_values = target_q_values.max(dim=1, keepdim=True)[0]
 
@@ -92,34 +107,28 @@ def train():
             print("Episode: {}".format(episode_i))
             print("Avg Reward: {}".format(np.mean(REWARD_BUFFER[:episode_i])))
 
-            # 如果奖励到达一定值，演示
-            if episode_i != 0 and np.mean(REWARD_BUFFER[:episode_i]) >= DEMO_REWARD:
-                count = 0
-                env_e = gym.make(GAME, render_mode='human')
-                s, info = env_e.reset()
-                # 演示
-                step = 0
-                while True:
-                    a = agent.online_net.act(s)
-                    s, r, done, trunk, info = env_e.step(a)
-                    count += r
-                    step += 1
-                    env_e.render()
-                    if done or step >= n_time_step:
-                        env_e.reset()
-                        print("#" * 50)
-                        print("Finished Reward: ", count)
-                        print("Step Number: ", step)
-                        print("-" * 50)
-                        env_e.close()
-                        break
-
     agent.save_model()
+
+    print("game over")
+    print("Init network %f" % (env_test.cache / env_test.total))
+
+    env_test = Env(S_dim, A_dim, A, Request_number, Stop_number)
+    s, _ = env_test.reset()
+    while True:
+        a_index = agent.online_net.act(s)
+        a = action_space.dic[a_index]
+        s, _, d, _, _ = env_test.step(a)
+        if d:
+            break
+    env_test.close()
+    print("last network %f" % (env_test.cache / env_test.total))
+
+
 
 
 def test():
     """Generate agents"""
-    env = gym.make(GAME, render_mode='human')
+    env = Env(S_dim, A_dim, A, Request_number, Stop_number)
     s, info = env.reset()
     n_state = len(s)
     n_action = env.action_space.n
@@ -148,24 +157,28 @@ def test():
 
 
 # 探索率初始
-EPSILON_START = 1.0
+EPSILON_START = 0.5
 # 探索率结束
 EPSILON_END = 0.02
 # 探索率衰减率
 EPSILON_DECAY = 100000
 # Target Network 更新频率
 TARGET_UPDATE_FREQUENCY = 10
-# 平均reward到达多少演示
-DEMO_REWARD = 100
 # 训练次数
 n_episode = 200
 # 每次训练的最大步数
-n_time_step = 400
-# 游戏
-GAME = "LunarLander-v2"
+n_time_step = 10000
 # model
 model_path = "../../Result/checkpoints"
 
+
+A_dim = 30  # 缓存内容索引大小
+S_dim = 4  # 缓存空间大小
+A_number = 4  # 缓存空间大小
+Request_number = 10  # 一次请求的请求数量
+A = 0.6
+Stop_number = 100  # 环境请求最大数量
+
 if __name__ == '__main__':
-    # train()
-    test()
+    train()
+    # test()
