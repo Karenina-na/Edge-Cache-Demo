@@ -14,7 +14,6 @@ def train():
 
     n_state = S_dim
     n_action = action_space.n_action
-    print(n_action)
     """Generate agents"""
 
     agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train', model_path=model_path)
@@ -130,30 +129,26 @@ def test():
     """Generate agents"""
     env = Env(S_dim, A_dim, A, Request_number, Stop_number)
     s, info = env.reset()
-    n_state = len(s)
-    n_action = env.action_space.n
+    action_space = ActionSpace(A_number, A_dim)
+
+    s, info = env.reset()
+
+    n_state = S_dim
+    n_action = action_space.n_action
 
     agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='test', model_path=model_path)
 
-    reward_all = 0
-
-    # 演示
-    step = 0
+    env_test = Env(S_dim, A_dim, A, Request_number, Stop_number)
+    s, _ = env_test.reset()
     while True:
-        a = agent.online_net.act(s)
-        s, r, done, trunk, info = env.step(a)
-        reward_all += r
-        step += 1
-        env.render()
-        if done or step >= n_time_step:
-            env.reset()
-            print("#" * 50)
-            print("Finished Reward: ", reward_all)
-            print("Step Number: ", step)
-            print("-" * 50)
+        a_index = agent.online_net.act(s)
+        a = action_space.dic[a_index]
+        s, _, d, _, _ = env_test.step(a)
+        if d:
             break
+    env_test.close()
 
-    env.close()
+    print("cache hit ratio %f" % (env_test.cache / env_test.total))
 
 
 # 探索率初始
@@ -167,7 +162,7 @@ TARGET_UPDATE_FREQUENCY = 10
 # 训练次数
 n_episode = 200
 # 每次训练的最大步数
-n_time_step = 10000
+n_time_step = 1000
 # model
 model_path = "../../Result/checkpoints"
 
@@ -177,8 +172,8 @@ S_dim = 4  # 缓存空间大小
 A_number = 4  # 缓存空间大小
 Request_number = 10  # 一次请求的请求数量
 A = 0.6
-Stop_number = 100  # 环境请求最大数量
+Stop_number = 10000  # 环境请求最大数量
 
 if __name__ == '__main__':
-    train()
-    # test()
+    # train()
+    test()

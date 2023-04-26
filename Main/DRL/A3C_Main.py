@@ -121,19 +121,19 @@ def push_and_pull(optimizer: torch.optim, local_net: Agent, global_net: Agent, d
 
 
 UPDATE_GLOBAL_ITER = 20
-PARALLEL_NUM = 12
+PARALLEL_NUM = 6
 GAMMA = 0.9
 MAX_EP = 3000
 LEARNING_RATE = 1e-2
 BETAS = (0.92, 0.999)
 MODEL_PATH = "../../Result/checkpoints"
 # MODEL_PATH = None
-A_dim = 400  # 缓存内容索引大小
-S_dim = 20  # 缓存空间大小
-A_number = 20  # 缓存空间大小
-Request_number = 1000  # 一次请求的请求数量
+A_dim = 30  # 缓存内容索引大小
+S_dim = 4  # 缓存空间大小
+A_number = 4  # 缓存空间大小
+Request_number = 10  # 一次请求的请求数量
 A = 0.6
-Stop_number = 1000  # 环境请求最大数量
+Stop_number = 10000  # 环境请求最大数量
 
 
 def train():
@@ -215,5 +215,5 @@ def test():
 
 
 if __name__ == "__main__":
-    train()
-    # test()
+    # train()
+    test()
