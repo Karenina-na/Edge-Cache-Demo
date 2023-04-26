@@ -52,7 +52,7 @@ class PolicyNet(nn.Module):
         x = F.relu(x)
         x = self.fc2(x)  # [b,n_hidden]-->[b,n_actions]
         x = torch.tanh(x)  # 将数值调整到 [-1,1]
-        x = x * self.action_bound  # 缩放到 [-action_bound, action_bound]
+        x = x * self.action_bound  # 缩放到 [0, action_bound]
         return x
 
 
@@ -133,9 +133,10 @@ class Agent(nn.Module):
         # 策略网络计算出当前状态下的动作价值 [1,n_states]-->[1,1]-->int
         action = self.actor(state).detach()
         # 给动作添加噪声，增加搜索
+        action = action.cpu().numpy()
         if self.type == "train":
             action = action + self.sigma * np.random.randn(self.n_actions)
-        return action.numpy()
+        return action
 
     # 软更新, 意思是每次learn的时候更新部分参数
     def soft_update(self, net, target_net):
@@ -152,7 +153,6 @@ class Agent(nn.Module):
         rewards = torch.tensor(transition_dict['rewards'], dtype=torch.float).view(-1, 1).to(self.device)  # [b,1]
         next_states = torch.tensor(transition_dict['next_states'], dtype=torch.float).to(self.device)  # [b,next_states]
         dones = torch.tensor(transition_dict['dones'], dtype=torch.float).view(-1, 1).to(self.device)  # [b,1]
-
         # 策略目标网络获取下一时刻的每个动作价值[b,n_states]-->[b,n_actors]
         next_q_actions = self.target_actor(next_states)
         # 价值目标网络获取下一时刻状态选出的动作价值 [b,n_states+n_actions]-->[b,1]
