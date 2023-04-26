@@ -8,16 +8,17 @@ import random
 
 # 经验池
 class ReplayMemory:
-    def __init__(self, n_s, n_a):
+    def __init__(self, n_s, n_a, a_number):
         self.n_s = n_s
         self.n_a = n_a
+        self.a_number = a_number
 
-        self.MEMORY_SIZE = 10000
+        self.MEMORY_SIZE = 50000
         self.BATCH_SIZE = 64
         self.all_s = np.empty(shape=(self.MEMORY_SIZE, self.n_s), dtype=np.float64)
-        self.all_a = np.random.randint(low=0, high=self.n_a, size=self.MEMORY_SIZE, dtype=np.uint8)
+        self.all_a = np.random.randint(low=0, high=self.n_a, size=(self.MEMORY_SIZE, self.a_number), dtype=np.int)
         self.all_r = np.empty(self.MEMORY_SIZE, dtype=np.float64)
-        self.all_done = np.random.randint(low=0, high=2, size=self.MEMORY_SIZE, dtype=np.uint8)
+        self.all_done = np.random.randint(low=0, high=2, size=self.MEMORY_SIZE, dtype=np.int)
         self.all_s_ = np.empty(shape=(self.MEMORY_SIZE, self.n_s), dtype=np.float64)
 
         self.count = 0
@@ -53,7 +54,7 @@ class ReplayMemory:
             batch_s_.append(self.all_s_[idx])
 
         batch_s_tensor = torch.as_tensor(np.asarray(batch_s), dtype=torch.float32)
-        batch_a_tensor = torch.as_tensor(np.asarray(batch_a), dtype=torch.int64).unsqueeze(-1)
+        batch_a_tensor = torch.as_tensor(np.asarray(batch_a), dtype=torch.int64)
         batch_r_tensor = torch.as_tensor(np.asarray(batch_r), dtype=torch.float32).unsqueeze(-1)
         batch_done_tensor = torch.as_tensor(np.asarray(batch_done), dtype=torch.float32).unsqueeze(-1)
         batch_s__tensor = torch.as_tensor(np.asarray(batch_s_), dtype=torch.float32)
@@ -64,14 +65,16 @@ class ReplayMemory:
 
 # 神经网络
 class DQN(nn.Module):
-    def __init__(self, n_input, n_output):
+    def __init__(self, n_input, n_output, a_number):
         super().__init__()
         in_features = n_input
+        self.a_number = a_number
 
         self.net = nn.Sequential(
-            nn.Linear(in_features, 64),
+            nn.Linear(in_features, 128),
             nn.Tanh(),
-            nn.Linear(64, n_output))
+            nn.Linear(128, n_output),
+        )
 
     def forward(self, x):
         return self.net(x)
@@ -82,36 +85,36 @@ class DQN(nn.Module):
         # 计算Q值
         q_values = self(obs_tensor.unsqueeze(0))
 
-        # 选择最大的Q值对应的动作
-        max_q_index = torch.argmax(q_values)
-
+        # 选择最大的Q值对应的action_number个动作
+        max_q_index = torch.argsort(q_values, dim=1, descending=True)[0][:self.a_number]
         # 返回动作
-        action = max_q_index.detach().item()
+        action = max_q_index.detach().numpy()
         return action
 
 
 # DQN agent
 class Agent:
-    def __init__(self, idx, n_input, n_output, mode="train", model_path=None):
+    def __init__(self, idx, n_input, n_output, a_number, mode="train", model_path=None, lr=1e-3, gamma=0.9):
         self.idx = idx
         self.mode = mode
         self.n_input = n_input
         self.n_output = n_output
+        self.a_number = a_number
         self.model_path = model_path
 
         # 回报折扣率
-        self.GAMMA = 0.99
+        self.GAMMA = gamma
 
         # 学习率
-        self.learning_rate = 1e-3
+        self.learning_rate = lr
 
         # 创建经验池
-        self.memo = ReplayMemory(n_s=self.n_input, n_a=self.n_output)
+        self.memo = ReplayMemory(n_s=self.n_input, n_a=self.n_output, a_number=self.a_number)
 
         # 创建神经网络
         if self.mode == "train":
-            self.online_net = DQN(self.n_input, self.n_output)
-            self.target_net = DQN(self.n_input, self.n_output)
+            self.online_net = DQN(self.n_input, self.n_output, self.a_number)
+            self.target_net = DQN(self.n_input, self.n_output, self.a_number)
 
             if model_path is not None:
                 if os.path.exists(model_path + "/dqn.pth"):
@@ -126,7 +129,7 @@ class Agent:
             self.optimizer = torch.optim.Adam(self.online_net.parameters(), lr=self.learning_rate)
 
         else:
-            self.online_net = DQN(self.n_input, self.n_output)
+            self.online_net = DQN(self.n_input, self.n_output, self.a_number)
             self.online_net.load_state_dict(torch.load(model_path + "/dqn.pth"))
             print("load model from {}".format(model_path + "/dqn.pth"))
 

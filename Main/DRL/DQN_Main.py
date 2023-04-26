@@ -1,4 +1,4 @@
-import gym
+from Env.env import Env
 import numpy as np
 import torch
 import torch.nn as nn
@@ -7,16 +7,17 @@ from Models.Agent.DQN_Agent import Agent
 
 
 def train():
-    env = gym.make(GAME, render_mode='rgb_array')
+    env = Env(S_dim, A_dim, A, Request_number, Stop_number)
 
     s, info = env.reset()
 
-    n_state = len(s)
-    n_action = env.action_space.n
+    n_state = S_dim
+    n_action = A_dim
 
     """Generate agents"""
 
-    agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train', model_path=model_path)
+    agent = Agent(idx=0, n_input=n_state, n_output=n_action, a_number=A_number,
+                  mode='train', model_path=model_path, lr=LEARNING_RATE, gamma=GAMMA)
 
     """Main Training Loop"""
 
@@ -36,7 +37,7 @@ def train():
             # 概率epsilon随机选择动作，概率1-epsilon选择最优动作 online网络
             random_sample = random.random()
             if random_sample <= epsilon:
-                a = env.action_space.sample()
+                a = np.random.choice(A_dim, A_number, replace=False)
             else:
                 a = agent.online_net.act(s)
 
@@ -52,29 +53,23 @@ def train():
             # 记录奖励
             episode_reward += r
 
-            if done:
-                s, info = env.reset()
-
-                # 记录奖励
-                REWARD_BUFFER[episode_i] = episode_reward
-                break
-
             # 抽取经验
             batch_s, batch_a, batch_r, batch_done, batch_s_ = agent.memo.sample()  # update batch-size amounts of Q
 
             # 计算 target Q(t+1)
             target_q_values = agent.target_net(batch_s_)
 
-            # 计算 target max Q(t+1)
-            max_target_q_values = target_q_values.max(dim=1, keepdim=True)[0]
+            # 计算 target max Q(t+1) A_number
+            max_target_q_arg = torch.argsort(-target_q_values)[0][0:A_number]
+            max_target_q_values = target_q_values[:, max_target_q_arg]
 
             # 计算 target Q(t)
-            targets = batch_r + agent.GAMMA * (1 - batch_done) * max_target_q_values
+            targets = batch_r + agent.GAMMA * max_target_q_values
 
             # 计算 online Q(t)
             q_values = agent.online_net(batch_s)
 
-            # 按照 batch_a 选择 Q(t) 中的动作 维度为行
+            # 按照 batch_a 选择 Q(t) 中的动作 维度为行 A_number
             a_q_values = torch.gather(input=q_values, dim=1, index=batch_a)
 
             # 计算 loss
@@ -84,6 +79,14 @@ def train():
             agent.optimizer.zero_grad()
             loss.backward()
             agent.optimizer.step()
+
+            if done:
+                s, info = env.reset()
+
+                # 记录奖励
+                REWARD_BUFFER[episode_i] = episode_reward
+
+                break
 
         # 更新 target 网络
         if episode_i % TARGET_UPDATE_FREQUENCY == 0 and episode_i != 0:
@@ -114,17 +117,17 @@ def train():
                         env_e.close()
                         break
 
-    agent.save_model()
+    # agent.save_model()
 
 
 def test():
     """Generate agents"""
-    env = gym.make(GAME, render_mode='human')
+    env = Env(S_dim, A_dim, A, Request_number, Stop_number)
     s, info = env.reset()
-    n_state = len(s)
-    n_action = env.action_space.n
+    n_state = S_dim
+    n_action = A_dim
 
-    agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='test', model_path=model_path)
+    agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='test', model_path=model_path, lr=LEARNING_RATE, gamma=GAMMA)
 
     reward_all = 0
 
@@ -147,6 +150,10 @@ def test():
     env.close()
 
 
+# 学习率
+LEARNING_RATE = 0.1
+# 折扣率
+GAMMA = 0.99
 # 探索率初始
 EPSILON_START = 1.0
 # 探索率结束
@@ -156,16 +163,22 @@ EPSILON_DECAY = 100000
 # Target Network 更新频率
 TARGET_UPDATE_FREQUENCY = 10
 # 平均reward到达多少演示
-DEMO_REWARD = 100
+DEMO_REWARD = 500
 # 训练次数
-n_episode = 200
+n_episode = 2000
 # 每次训练的最大步数
-n_time_step = 400
-# 游戏
-GAME = "LunarLander-v2"
+n_time_step = 100
 # model
-model_path = "../../Result/checkpoints"
+# model_path = "../../Result/checkpoints"
+model_path = None
+
+A_dim = 400  # 缓存内容索引大小
+S_dim = 20  # 缓存空间大小
+A_number = 20  # 缓存空间大小
+Request_number = 1000  # 一次请求的请求数量
+A = 0.6
+Stop_number = 10  # 环境请求最大数量
 
 if __name__ == '__main__':
-    # train()
-    test()
+    train()
+    # test()
