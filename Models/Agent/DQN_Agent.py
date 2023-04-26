@@ -73,6 +73,8 @@ class DQN(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(in_features, 128),
             nn.Tanh(),
+            nn.Linear(128, 128),
+            nn.Tanh(),
             nn.Linear(128, n_output),
         )
 

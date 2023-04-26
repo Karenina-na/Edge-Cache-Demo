@@ -41,6 +41,8 @@ def train():
             else:
                 a = agent.online_net.act(s)
 
+            print(a)
+
             # 执行动作
             s_, r, done, trunk, info = env.step(a)  # trunk,info will not be used
 
@@ -59,7 +61,7 @@ def train():
             # 计算 target Q(t+1)
             target_q_values = agent.target_net(batch_s_)
 
-            # 计算 target max Q(t+1) A_number
+            # 计算 target max Q(t+1) A_number 从大到小
             max_target_q_arg = torch.argsort(-target_q_values)[0][0:A_number]
             max_target_q_values = target_q_values[:, max_target_q_arg]
 
@@ -73,7 +75,7 @@ def train():
             a_q_values = torch.gather(input=q_values, dim=1, index=batch_a)
 
             # 计算 loss
-            loss = nn.functional.smooth_l1_loss(a_q_values, targets)
+            loss = nn.functional.smooth_l1_loss(a_q_values.sum(), targets.sum())
 
             # 更新 online 网络
             agent.optimizer.zero_grad()
@@ -95,27 +97,6 @@ def train():
             print("Episode: {}".format(episode_i))
             print("Avg Reward: {}".format(np.mean(REWARD_BUFFER[:episode_i])))
 
-            # 如果奖励到达一定值，演示
-            if episode_i != 0 and np.mean(REWARD_BUFFER[:episode_i]) >= DEMO_REWARD:
-                count = 0
-                env_e = gym.make(GAME, render_mode='human')
-                s, info = env_e.reset()
-                # 演示
-                step = 0
-                while True:
-                    a = agent.online_net.act(s)
-                    s, r, done, trunk, info = env_e.step(a)
-                    count += r
-                    step += 1
-                    env_e.render()
-                    if done or step >= n_time_step:
-                        env_e.reset()
-                        print("#" * 50)
-                        print("Finished Reward: ", count)
-                        print("Step Number: ", step)
-                        print("-" * 50)
-                        env_e.close()
-                        break
 
     # agent.save_model()
 
@@ -155,7 +136,7 @@ LEARNING_RATE = 0.1
 # 折扣率
 GAMMA = 0.99
 # 探索率初始
-EPSILON_START = 1.0
+EPSILON_START = 0.2
 # 探索率结束
 EPSILON_END = 0.02
 # 探索率衰减率
