@@ -25,13 +25,13 @@ def train():
     state, _ = env_test.reset()
     while True:
         action_prob = agent.take_action(state)
-        action = np.argsort(action_prob)[0][-A_number:]
+        action = np.argsort(action_prob)[0][-n_actions:]
         s, _, d, _, _ = env_test.step(action)
         if d:
             break
     env_test.close()
 
-    for i in range(max_episode):  # 迭代10回合
+    for i in range(max_episode):  # 迭代
         episode_return = 0  # 累计每条链上的reward
         state = env.reset()[0]  # 初始时的状态
         done = False  # 回合结束标记
@@ -39,7 +39,7 @@ def train():
         while not done and steps < episode_steps:
             # 获取当前状态对应的动作概率分布 [1, n_actions]
             action_prob = agent.take_action(state)
-            action = np.argsort(action_prob)[0][-A_number:]
+            action = np.argsort(action_prob[0])[-A_number:]
             # 环境更新
             next_state, reward, done, _, _ = env.step(action)
             # 更新经验回放池
@@ -125,9 +125,9 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 path = "../../Result/checkpoints"
 
 max_episode = 2000  # 最大回合数
-episode_steps = 1000  # 每个回合的最大步数
+episode_steps = 100  # 每回合最大步数
 n_hidden = 256  # 隐含层数
-sigma = 0.3  # 高斯噪声
+sigma = 0.1  # 高斯噪声
 actor_lr = 1e-1  # 策略网络学习率
 critic_lr = 1e-1  # 价值网络学习率
 tau = 0.5  # 软更新系数
@@ -136,17 +136,17 @@ buffer_size = 20000  # 经验回放池容量
 buffer_min_size = 500  # 经验回放池最小容量
 buffer_batch_size = 32  # 经验回放池采样批次大小
 
-S_dim = 50  # 状态空间
-A_dim = 300  # 动作空间
-A_number = 50  # 选取动作数量
-Request_number = 1000  # 环境每次请求数量
-A = 0.5
+A_dim = 400  # 缓存内容索引大小
+S_dim = 20  # 缓存空间大小
+A_number = 20  # 缓存空间大小
+Request_number = 1000  # 一次请求的请求数量
+A = 0.6
 Stop_number = 1000  # 环境请求最大数量
 
 env = Env(S_dim, A_dim, A, Request_number, Stop_number)
 
 n_states = S_dim  # 状态数
-n_actions = A_dim  # 动作空间
+n_actions = A_dim  # 动作数
 action_bound = 1  # 动作的最大值 1.0
 
 if __name__ == "__main__":
