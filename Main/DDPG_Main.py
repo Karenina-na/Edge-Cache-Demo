@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from Env.env import Env
-from Models.Agent.DDPG_Agent import ReplayBuffer, Agent
+from Agent.DDPG_Agent import ReplayBuffer, Agent
 
 
 def train():
@@ -122,7 +122,7 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 # 环境加载
 # -------------------------------------- #
 
-path = "../../Result/checkpoints"
+path = "../Result/checkpoints"
 
 max_episode = 2000  # 最大回合数
 episode_steps = 100  # 每回合最大步数

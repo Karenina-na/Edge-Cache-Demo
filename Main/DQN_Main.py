@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import random
-from Models.Agent.DQN_Agent import Agent, ActionSpace
+from Agent.DQN_Agent import Agent, ActionSpace
 
 
 def train():
@@ -164,7 +164,7 @@ n_episode = 200
 # 每次训练的最大步数
 n_time_step = 1000
 # model
-model_path = "../../Result/checkpoints"
+model_path = "../Result/checkpoints"
 
 
 A_dim = 30  # 缓存内容索引大小

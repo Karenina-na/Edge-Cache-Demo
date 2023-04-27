@@ -1,7 +1,7 @@
 import torch
 import torch.multiprocessing as mp
 import os
-from Models.Agent.A3C_Agent import Agent, SharedAdam
+from Agent.A3C_Agent import Agent, SharedAdam
 import numpy as np
 from Env.env import Env
 
@@ -126,7 +126,7 @@ GAMMA = 0.9
 MAX_EP = 3000
 LEARNING_RATE = 1e-2
 BETAS = (0.92, 0.999)
-MODEL_PATH = "../../Result/checkpoints"
+MODEL_PATH = "../Result/checkpoints"
 # MODEL_PATH = None
 A_dim = 30  # 缓存内容索引大小
 S_dim = 4  # 缓存空间大小

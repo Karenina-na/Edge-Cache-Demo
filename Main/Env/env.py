@@ -1,5 +1,5 @@
 import gym
-from Main.DRL.Env.ProbAndReward.probability import ProbabilityDensity
+from Main.Env.ProbAndReward.probability import ProbabilityDensity
 import numpy as np
 
 
