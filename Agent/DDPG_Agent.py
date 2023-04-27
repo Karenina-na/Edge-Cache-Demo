@@ -5,6 +5,7 @@ import numpy as np
 import collections
 import random
 import os
+from itertools import combinations
 
 
 # ------------------------------------- #
@@ -51,8 +52,7 @@ class PolicyNet(nn.Module):
         x = self.fc1(x)  # [b,n_states]-->[b,n_hidden]
         x = F.relu(x)
         x = self.fc2(x)  # [b,n_hidden]-->[b,n_actions]
-        # 将数值调整到 [0,1]
-        x = torch.sigmoid(x)
+        x = torch.sigmoid(x)  # 将数值调整到 [0,1]
         x = x * self.action_bound  # 缩放到 [0, action_bound]
         return x
 
@@ -79,6 +79,50 @@ class QValueNet(nn.Module):
         x = F.relu(x)
         x = self.fc3(x)  # -->[b, 1]
         return x
+
+
+# ------------------------------------- #
+# 动作空间
+# ------------------------------------- #
+class ActionSpace:
+    def __init__(self, n_action, action_space, ):
+        self.action_space = np.arange(action_space)  # 动作空间
+
+        self.dic = []  # 存储编号-枚举的动作
+
+        comb = combinations(self.action_space, n_action)
+        for i in comb:
+            self.dic.append(i)
+
+        self.n_action = len(self.dic)  # 动作空间的大小
+
+
+# 神经网络
+class DQN(nn.Module):
+    def __init__(self, n_input, n_output):
+        super().__init__()
+        in_features = n_input
+
+        self.net = nn.Sequential(
+            nn.Linear(in_features, 128),
+            nn.Tanh(),
+            nn.Linear(128, n_output))
+
+    def forward(self, x):
+        return self.net(x)
+
+    def act(self, obs):
+        obs_tensor = torch.as_tensor(obs, dtype=torch.float32)
+
+        # 计算Q值
+        q_values = self(obs_tensor.unsqueeze(0))
+
+        # 选择最大的Q值对应的动作
+        max_q_index = torch.argmax(q_values)
+
+        # 返回动作
+        action = max_q_index.detach().item()
+        return action
 
 
 # ------------------------------------- #
@@ -132,12 +176,11 @@ class Agent(nn.Module):
         # 维度变换 list[n_states]-->tensor[1,n_states]-->gpu
         state = torch.tensor(state, dtype=torch.float).view(1, -1).to(self.device)
         # 策略网络计算出当前状态下的动作价值 [1,n_states]-->[1,1]-->int
-        action = self.actor(state).detach()
+        action = self.actor(state).detach().cpu()
         # 给动作添加噪声，增加搜索
-        action = action.cpu().numpy()
         if self.type == "train":
             action = action + self.sigma * np.random.randn(self.n_actions)
-        return action
+        return action.numpy()
 
     # 软更新, 意思是每次learn的时候更新部分参数
     def soft_update(self, net, target_net):
@@ -154,12 +197,13 @@ class Agent(nn.Module):
         rewards = torch.tensor(transition_dict['rewards'], dtype=torch.float).view(-1, 1).to(self.device)  # [b,1]
         next_states = torch.tensor(transition_dict['next_states'], dtype=torch.float).to(self.device)  # [b,next_states]
         dones = torch.tensor(transition_dict['dones'], dtype=torch.float).view(-1, 1).to(self.device)  # [b,1]
-        # 策略目标网络获取下一时刻的每个动作概率[b,n_states]-->[b,n_actors]
+
+        # 策略目标网络获取下一时刻的每个动作价值[b,n_states]-->[b,n_actors]
         next_q_actions = self.target_actor(next_states)
         # 价值目标网络获取下一时刻状态选出的动作价值 [b,n_states+n_actions]-->[b,1]
         next_q_value = self.target_critic(next_states, next_q_actions)
         # 当前时刻的动作价值的目标值 [b,1]
-        q_targets = rewards + self.gamma * next_q_value
+        q_targets = rewards + self.gamma * next_q_value * (1 - dones)
 
         # 当前时刻动作价值的预测值 [b,n_states+n_actions]-->[b,1]
         q_values = self.critic(states, action)
@@ -171,13 +215,12 @@ class Agent(nn.Module):
         critic_loss.backward()
         self.critic_optimizer.step()
 
-        # 当前状态的每个动作的策略 [b, n_actions]
-        actor_q_actions = self.actor(states)
+        # 当前状态的每个动作的价值 [b, n_actions]
+        actor_q_values = self.actor(states)
         # 当前状态选出的动作价值 [b,1]
-        score = self.critic(states, actor_q_actions)
+        score = self.critic(states, actor_q_values)
         # 计算损失 loss=-score
         actor_loss = -torch.mean(score)
-
         # 策略网络梯度
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
@@ -220,13 +263,13 @@ if __name__ == "__main__":
     print(value(s, a))
 
     # 环境状态，隐藏层，动作维度，动作范围，高斯噪声的标准差，策略学习率，价值学习率，目标网络的软更新参数，折扣因子，device
-    agent = Agent(3, 128, 4, 1, 0.2, 0.001, 0.001, 0.01, 0.99, 'cpu')
+    agent = Agent(3, 128, 10000, 1, 0.2, 0.001, 0.001, 0.01, 0.99, 'cpu')
     s = np.random.randn(3)
     print(agent.take_action(s))
 
     transition_dict = {
         'states': np.random.randn(32, 3),
-        'action': np.random.randn(32, 4),
+        'action': np.random.randn(32, 10000),
         'rewards': np.random.randn(32, 1),
         'next_states': np.random.randn(32, 3),
         'dones': np.random.randn(32, 1)
