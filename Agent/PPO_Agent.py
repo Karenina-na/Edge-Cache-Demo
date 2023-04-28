@@ -3,6 +3,23 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 import os
+from itertools import combinations
+
+
+# ----------------------------------- #
+# 动作空间
+# ----------------------------------- #
+class ActionSpace:
+    def __init__(self, n_action, action_space, ):
+        self.action_space = np.arange(action_space)  # 动作空间
+
+        self.dic = []  # 存储编号-枚举的动作
+
+        comb = combinations(self.action_space, n_action)
+        for i in comb:
+            self.dic.append(i)
+
+        self.n_action = len(self.dic)  # 动作空间的大小
 
 
 # ----------------------------------- #
@@ -85,7 +102,7 @@ class Agent(nn.Module):
     # 动作选择
     def take_action(self, state):
         # 维度变换 [n_state]-->tensor[1,n_states]
-        state = torch.tensor(state[np.newaxis, :]).to(self.device)
+        state = torch.tensor(state[np.newaxis, :], dtype=torch.float32).to(self.device)
         # 当前状态下，每个动作的概率分布 [1,n_states]
         probs = self.actor(state)
         # 创建以probs为标准的概率分布
@@ -105,7 +122,7 @@ class Agent(nn.Module):
 
         # 目标，下一个状态的state_value  [b,1]
         next_q_target = self.critic(next_states)
-        # 目标，当前状态的state_value  [b,1]
+        # 目标，当前状态的state_value  [b,1] = reward + gamma * next_q_target * (1 - done)
         td_target = rewards + self.gamma * next_q_target * (1 - dones)
         # 预测，当前状态的state_value  [b,1]
         td_value = self.critic(states)
@@ -119,11 +136,12 @@ class Agent(nn.Module):
 
         # 计算优势函数
         for delta in td_delta[::-1]:  # 逆序时序差分值 axis=1轴上倒着取 [], [], []
-            # 优势函数GAE的公式
+            # 优势函数GAE的公式 GAE = delta + gamma * lmbda * advantage
             advantage = self.gamma * self.lmbda * advantage + delta
             advantage_list.append(advantage)
         # 正序
         advantage_list.reverse()
+
         # numpy --> tensor [b,1]
         advantage = torch.tensor(np.array(advantage_list), dtype=torch.float).to(self.device)
 
