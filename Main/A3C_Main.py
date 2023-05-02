@@ -131,7 +131,7 @@ MODEL_PATH = "../Result/checkpoints"
 A_dim = 30  # 缓存内容索引大小
 S_dim = 4  # 缓存空间大小
 A_number = 4  # 缓存空间大小
-Request_number = 10  # 一次请求的请求数量
+Request_number = 100  # 一次请求的请求数量
 A = 0.6
 Stop_number = 10000  # 环境请求最大数量
 
