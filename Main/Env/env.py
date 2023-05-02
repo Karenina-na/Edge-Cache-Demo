@@ -34,17 +34,14 @@ class Env(gym.Env):
         time_out = np.zeros(shape=(len(self.observation_space[1])))
         for i in range(len(self.observation_space[0])):
             frequency[i] += self.request.request.count(i)
-        for index in self.request.request:
-            time_out[index] += self.request.time_out[index]
-        self.observation_space[0] = frequency
-        self.observation_space[1] = time_out / self.request_number
+        for i in range(len(self.request.request)):
+            time_out[self.request.request[i]] += round(self.request.time_out[i] / frequency[self.request.request[i]])
+        self.observation_space[0] = frequency  # 频率
+        self.observation_space[1] = time_out  # 时延均值
 
         # request_time_out_dis更新 [状态index, 时延]  [S_dim, S_dim]
-        print(self.request_time_out_dis)
-        exit(0)
-        for index in self.request.request:
-            self.request_time_out_dis[index].append(self.request.time_out[index])
-
+        for i in range(len(self.request.request)):
+            self.request_time_out_dis[self.request.request[i]].append(self.request.time_out[i])  # 时延分布
 
         # 结束条件
         if self.total >= self.stop_number:
@@ -56,19 +53,19 @@ class Env(gym.Env):
         self.request.RequestCreate()
         self.request.RequestTimeOut()
 
-        # observation_space更新
+        # observation_space更新 [频率，时延均值] [2, S_dim]
         frequency = np.zeros(shape=(len(self.observation_space[0])))
+        time_out = np.zeros(shape=(len(self.observation_space[1])))
         for i in range(len(self.observation_space[0])):
             frequency[i] += self.request.request.count(i)
-        time_out = np.zeros(shape=(len(self.observation_space[1])))
-        for index in self.request.request:
-            time_out[index] += self.request.time_out[index]
-        self.observation_space[0] = frequency
-        self.observation_space[1] = time_out / self.request_number
+        for i in range(len(self.request.request)):
+            time_out[self.request.request[i]] += self.request.time_out[i] / frequency[self.request.request[i]]
+        self.observation_space[0] = frequency  # 频率
+        self.observation_space[1] = time_out  # 时延均值
 
         # request_time_out_dis更新 [状态index, 时延]  [S_dim, S_dim]
-        for index in self.request.request:
-            self.request_time_out_dis[index].append(self.request.time_out[index])
+        for i in range(len(self.request.request)):
+            self.request_time_out_dis[self.request.request[i]].append(self.request.time_out[i])  # 时延分布
 
         self.cache = 0
         self.total = 0
@@ -76,36 +73,57 @@ class Env(gym.Env):
 
 
 if __name__ == "__main__":
-    s_dim = 10
-    a_dim = 5
-    request_number = 50
+    s_dim = 4
+    a_dim = 2
+    request_number = 20
     stop_number = 100
     env = Env(s_dim, a_dim, request_number, stop_number)
-    count = np.zeros(shape=s_dim)
-    time_out = np.zeros(shape=s_dim)
-    time_out_dis = np.zeros(shape=(s_dim, s_dim))
-    env.reset()
+    frequency = np.zeros(shape=s_dim)
+    time_out_mean = np.zeros(shape=s_dim)
+    dic = {i: 0. for i in range(s_dim)}
+    time_out_dis = [[] for _ in range(s_dim)]
+    step = 0
+    # 初始化
+    observation_space, _ = env.reset()
+    for i in range(s_dim):
+        frequency[i] += observation_space[0][i]
+        time_out_mean[i] += observation_space[1][i]
+        if observation_space[0][i] != 0:
+            dic[i] += 1
+
     while True:
         # observation_space [频率，时延均值] [2, S_dim]
         observation_space, _, done, _, _ = env.step(np.arange(a_dim))
         request_error_dis = env.request_time_out_dis
-        print(request_error_dis)
-        exit(0)
         for i in range(s_dim):
-            count[i] += observation_space[0][i]
-            time_out[i] += observation_space[1][i]
-            time_out[i] /= 2  # 时延均值
-
+            frequency[i] += observation_space[0][i]
+            time_out_mean[i] += observation_space[1][i]
+            if observation_space[0][i] != 0:
+                dic[i] += 1
+            time_out_dis[i] += request_error_dis[i]
         if done:
             break
+    for i in range(s_dim):
+        if dic[i] != 0:
+            time_out_mean[i] = time_out_mean[i] / dic[i]
+    # 画图
     import matplotlib.pyplot as plt
 
     plt.figure(figsize=(10, s_dim * 3), dpi=200)
     plt.subplots_adjust(hspace=0.5)
     for i in range(s_dim):
-        plt.subplot(s_dim, 1, i + 1)
-        plt.plot(range(s_dim), count[i], '-', color='r')
-        plt.ylabel('count')
+        plt.subplot(s_dim+1, 1, i + 1)
+        plt.plot(range(len(time_out_dis[i])), time_out_dis[i], '-', color='r')
+        plt.ylabel('time out')
         plt.xlabel('step')
-        plt.title('state %d' % i)
+        plt.title("number %d file's time out distribution" % i)
+        # 理论均值线
+        plt.axhline(y=env.request.time_out_stander[i], color="b", linestyle="-")
+        # 实际均值线
+        plt.axhline(y=time_out_mean[i], color="g", linestyle="-")
+    plt.subplot(s_dim+1, 1, s_dim+1)
+    plt.plot(range(len(frequency)), frequency, '-', color='r')
+    plt.ylabel('frequency')
+    plt.xlabel('file')
+    plt.title("frequency")
     plt.show()

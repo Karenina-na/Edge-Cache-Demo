@@ -8,7 +8,7 @@ class Request:
         self.request_number = request_number
         self.request = []
         self.time_out = []
-
+        self.time_out_stander = []
         # self.mu = 1.2
         # self.sigma = 1
         self.class_sigma = 10
@@ -16,6 +16,15 @@ class Request:
         self.a = 0.6
         # 时延范围
         self.time_out_range = [10, 10000]
+
+        # 标准时延
+        for i in range(len(self.state_space)):
+            time_mu = ProbabilityMass.Poisson(i, self.lam)
+            # 归一化到[0, self.time_out_range[1]]间
+            time_mu = time_mu * (self.time_out_range[1] - self.time_out_range[0])
+            time_mu = int(np.round(time_mu))
+            # 时延误差概率分布
+            self.time_out_stander.append(time_mu + self.time_out_range[0])
 
     def RequestCreate(self):
         distribution = ProbabilityDensity.Zipf(np.arange(len(self.state_space)),
@@ -42,11 +51,11 @@ class Request:
                                                    time_mu, self.class_sigma)
             time_error = time_error / sum(time_error)
 
-            # 时延误差
+            # 时延误差  0~(self.time_out_range[1] - self.time_out_range[0])
             time_out = np.random.choice(np.arange(self.time_out_range[1] - self.time_out_range[0]), p=time_error)
 
             # 归一化到[self.time_out_range[0], self.time_out_range[1]]间
-            requests_time_out.append(time_out + self.time_out_range[0])
+            requests_time_out.append(int(time_out + self.time_out_range[0]))
         self.time_out = requests_time_out
 
 
