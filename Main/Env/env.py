@@ -1,12 +1,12 @@
 import gym
 from Main.Env.ProbAndReward.probability import ProbabilityDensity
 import numpy as np
-from Main.Env.ProbAndReward.Request import Request
+from Main.Env.ProbAndReward.request import Request
 
 
 class Env(gym.Env):
     def __init__(self, S_dim, a_dim, request_number, stop_number):
-        self.observation_space = np.zeros(shape=(2, S_dim))
+        self.observation_space = np.zeros(shape=(3, S_dim))
         self.action_space = np.arange(a_dim)
         self.request = Request(range(S_dim), request_number)
         self.request_number = request_number  # 每次生成的请求数量
@@ -29,15 +29,19 @@ class Env(gym.Env):
         self.request.RequestCreate()
         self.request.RequestTimeOut()
 
-        # observation_space更新 [频率，时延均值] [2, S_dim]
+        # observation_space更新 [频率，时延均值] [3, S_dim]
         frequency = np.zeros(shape=(len(self.observation_space[0])))
         time_out = np.zeros(shape=(len(self.observation_space[1])))
+        cache_index = np.zeros(shape=(len(self.observation_space[2])))
         for i in range(len(self.observation_space[0])):
             frequency[i] += self.request.request.count(i)
         for i in range(len(self.request.request)):
             time_out[self.request.request[i]] += round(self.request.time_out[i] / frequency[self.request.request[i]])
+        for index in action:
+            cache_index[index] = 1
         self.observation_space[0] = frequency  # 频率
         self.observation_space[1] = time_out  # 时延均值
+        self.observation_space[2] = cache_index  # 上一时刻缓存内容
 
         # request_time_out_dis更新 [状态index, 时延]  [S_dim, S_dim]
         for i in range(len(self.request.request)):
@@ -53,15 +57,17 @@ class Env(gym.Env):
         self.request.RequestCreate()
         self.request.RequestTimeOut()
 
-        # observation_space更新 [频率，时延均值] [2, S_dim]
+        # observation_space更新 [频率，时延均值] [3, S_dim]
         frequency = np.zeros(shape=(len(self.observation_space[0])))
         time_out = np.zeros(shape=(len(self.observation_space[1])))
+        cache_index = np.zeros(shape=(len(self.observation_space[2])))
         for i in range(len(self.observation_space[0])):
             frequency[i] += self.request.request.count(i)
         for i in range(len(self.request.request)):
-            time_out[self.request.request[i]] += self.request.time_out[i] / frequency[self.request.request[i]]
+            time_out[self.request.request[i]] += round(self.request.time_out[i] / frequency[self.request.request[i]])
         self.observation_space[0] = frequency  # 频率
         self.observation_space[1] = time_out  # 时延均值
+        self.observation_space[2] = cache_index  # 上一时刻缓存内容
 
         # request_time_out_dis更新 [状态index, 时延]  [S_dim, S_dim]
         for i in range(len(self.request.request)):
@@ -73,8 +79,8 @@ class Env(gym.Env):
 
 
 if __name__ == "__main__":
-    s_dim = 4
-    a_dim = 2
+    s_dim = 5
+    a_dim = 3
     request_number = 20
     stop_number = 100
     env = Env(s_dim, a_dim, request_number, stop_number)
@@ -92,7 +98,7 @@ if __name__ == "__main__":
             dic[i] += 1
 
     while True:
-        # observation_space [频率，时延均值] [2, S_dim]
+        # observation_space [频率，时延均值, 上一时刻缓存状态] [3, S_dim]
         observation_space, _, done, _, _ = env.step(np.arange(a_dim))
         request_error_dis = env.request_time_out_dis
         for i in range(s_dim):
@@ -119,10 +125,13 @@ if __name__ == "__main__":
         plt.title("number %d file's time out distribution" % i)
         # 理论均值线
         plt.axhline(y=env.request.time_out_stander[i], color="b", linestyle="-")
+        plt.text(0, env.request.time_out_stander[i], 'stander')
         # 实际均值线
         plt.axhline(y=time_out_mean[i], color="g", linestyle="-")
+        plt.text(0, time_out_mean[i], 'mean')
     plt.subplot(s_dim+1, 1, s_dim+1)
-    plt.plot(range(len(frequency)), frequency, '-', color='r')
+    plt.scatter(range(len(frequency)), frequency, marker='o', color='b')
+    plt.xticks(range(len(frequency)))
     plt.ylabel('frequency')
     plt.xlabel('file')
     plt.title("frequency")

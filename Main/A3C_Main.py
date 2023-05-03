@@ -132,12 +132,11 @@ A_dim = 30  # 缓存内容索引大小
 S_dim = 4  # 缓存空间大小
 A_number = 4  # 缓存空间大小
 Request_number = 100  # 一次请求的请求数量
-A = 0.6
 Stop_number = 10000  # 环境请求最大数量
 
 
 def train():
-    env = Env(S_dim, A_dim, A, Request_number, Stop_number)
+    env = Env(S_dim, A_dim, Request_number, Stop_number)
     N_S = S_dim
     N_A = A_dim
 
@@ -147,7 +146,7 @@ def train():
     global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
 
     # 初始
-    env_test = Env(S_dim, A_dim, A, Request_number, Stop_number)
+    env_test = Env(S_dim, A_dim, Request_number, Stop_number)
     s, _ = env_test.reset()
     while True:
         a = gnet.choose_action(v_wrap(s[None, :]))
