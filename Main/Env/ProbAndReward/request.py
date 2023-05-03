@@ -46,16 +46,17 @@ class Request:
             time_mu = time_mu * (self.time_out_range[1] - self.time_out_range[0])
             time_mu = int(np.round(time_mu))
 
-            # 时延误差概率分布
-            time_error = ProbabilityDensity.Normal(np.arange(self.time_out_range[1] - self.time_out_range[0]),
-                                                   time_mu, self.class_sigma)
-            time_error = time_error / sum(time_error)
-
-            # 时延误差  0~(self.time_out_range[1] - self.time_out_range[0])
-            time_out = np.random.choice(np.arange(self.time_out_range[1] - self.time_out_range[0]), p=time_error)
-
-            # 归一化到[self.time_out_range[0], self.time_out_range[1]]间
-            requests_time_out.append(int(time_out + self.time_out_range[0]))
+            # # 时延误差概率分布
+            # time_error = ProbabilityDensity.Normal(np.arange(self.time_out_range[1] - self.time_out_range[0]),
+            #                                        time_mu, self.class_sigma)
+            # time_error = time_error / sum(time_error)
+            #
+            # # 时延误差  0~(self.time_out_range[1] - self.time_out_range[0])
+            # time_out = np.random.choice(np.arange(self.time_out_range[1] - self.time_out_range[0]), p=time_error)
+            #
+            # # 归一化到[self.time_out_range[0], self.time_out_range[1]]间
+            # requests_time_out.append(int(time_out + self.time_out_range[0]))
+            requests_time_out.append(time_mu + self.time_out_range[0])
         self.time_out = requests_time_out
 
 
