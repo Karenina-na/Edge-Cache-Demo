@@ -1,5 +1,6 @@
 import numpy as np
 from Main.Env.ProbAndReward.probability import ProbabilityDensity, ProbabilityMass
+from Main.Env.ProbAndReward.commucate_function import Calculate_time
 
 
 class Request:
@@ -19,12 +20,14 @@ class Request:
 
         # 标准时延
         for i in range(len(self.state_space)):
-            time_mu = ProbabilityMass.Poisson(i, self.lam)
-            # 归一化到[0, self.time_out_range[1]]间
-            time_mu = time_mu * (self.time_out_range[1] - self.time_out_range[0])
-            time_mu = int(np.round(time_mu))
-            # 时延误差概率分布
-            self.time_out_stander.append(time_mu + self.time_out_range[0])
+            # time_mu = ProbabilityMass.Poisson(i, self.lam)
+            # # 归一化到[0, self.time_out_range[1]]间
+            # time_mu = time_mu * (self.time_out_range[1] - self.time_out_range[0])
+            # time_mu = int(np.round(time_mu))
+            # # 时延误差概率分布
+            # self.time_out_stander.append(time_mu + self.time_out_range[0])
+            time_mu = Calculate_time(i)
+            self.time_out_stander.append(time_mu)
 
     def RequestCreate(self):
         distribution = ProbabilityDensity.Zipf(np.arange(len(self.state_space)),
@@ -42,11 +45,9 @@ class Request:
         for i in range(len(self.request)):
             # time_mu = ProbabilityMass.Poisson(self.request[i], self.lam)
 
-
-            # 归一化到[0, self.time_out_range[1]]间
-            time_mu = time_mu * (self.time_out_range[1] - self.time_out_range[0])
-            time_mu = int(np.round(time_mu))
-
+            # # 归一化到[0, self.time_out_range[1]]间
+            # time_mu = time_mu * (self.time_out_range[1] - self.time_out_range[0])
+            # time_mu = int(np.round(time_mu))
             # # 时延误差概率分布
             # time_error = ProbabilityDensity.Normal(np.arange(self.time_out_range[1] - self.time_out_range[0]),
             #                                        time_mu, self.class_sigma)
@@ -57,9 +58,11 @@ class Request:
             #
             # # 归一化到[self.time_out_range[0], self.time_out_range[1]]间
             # requests_time_out.append(int(time_out + self.time_out_range[0]))
-            requests_time_out.append(time_mu + self.time_out_range[0])
-        self.time_out = requests_time_out
+            # requests_time_out.append(time_mu + self.time_out_range[0])
 
+            time_mu = Calculate_time(self.request[i])
+            requests_time_out.append(time_mu)
+        self.time_out = requests_time_out
 
 
 if __name__ == '__main__':
@@ -88,11 +91,11 @@ if __name__ == '__main__':
     # 统计时延的分布
     requests_time_out = []
     for i in range(len(request.state_space)):
-        time_percent = ProbabilityMass.Poisson(i, request.lam)
-        # 归一化到[10, 10000]间
-        time_out = time_percent * (request.time_out_range[1] - request.time_out_range[0]) + request.time_out_range[0]
-        requests_time_out.append(time_out)
+        # time_percent = ProbabilityMass.Poisson(i, request.lam)
+        # # 归一化到[10, 10000]间
+        # time_out = time_percent * (request.time_out_range[1] - request.time_out_range[0]) + request.time_out_range[0]
+        time_percent = Calculate_time(i)
+        requests_time_out.append(time_percent)
     plt.subplot(414)
     plt.bar(range(len(request.state_space)), requests_time_out, color='y')
-
     plt.show()
