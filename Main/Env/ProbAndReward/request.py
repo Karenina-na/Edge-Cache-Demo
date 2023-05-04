@@ -11,8 +11,8 @@ class Request:
         self.time_out_stander = []
         # self.mu = 1.2
         # self.sigma = 1
-        self.class_sigma = 10
-        self.lam = 2.2
+        # self.class_sigma = 10
+        # self.lam = 2.2
         self.a = 0.6
         # 时延范围
         self.time_out_range = [10, 10000]
@@ -40,7 +40,8 @@ class Request:
     def RequestTimeOut(self):
         requests_time_out = []
         for i in range(len(self.request)):
-            time_mu = ProbabilityMass.Poisson(self.request[i], self.lam)
+            # time_mu = ProbabilityMass.Poisson(self.request[i], self.lam)
+
 
             # 归一化到[0, self.time_out_range[1]]间
             time_mu = time_mu * (self.time_out_range[1] - self.time_out_range[0])
@@ -58,6 +59,7 @@ class Request:
             # requests_time_out.append(int(time_out + self.time_out_range[0]))
             requests_time_out.append(time_mu + self.time_out_range[0])
         self.time_out = requests_time_out
+
 
 
 if __name__ == '__main__':
