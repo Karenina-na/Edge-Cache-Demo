@@ -10,8 +10,8 @@ def ground_communicate():
         "lamda": 0.125,  # 波长 m
         "n": 2,  # 路径损耗系数
         "Bg": 1000000,  # 基站的带宽 Hz
-        "Pg": 1,  # 信号传输功率
-        "sigma": 5,  # 信道内高斯噪声功率
+        "Pg": 1,  # 信号传输功率 w
+        "sigma": 0.1,  # 信道内高斯噪声功率 db
     }
 
     # 路径损耗模型
@@ -33,12 +33,12 @@ def ground_communicate():
 def plane_communicate():
     # 节点跟无人机通信
     cfg_plane = {
-        "d": 3000,  # 节点到基站的距离
-        "dH": 100,  # 高度差
-        "n": 2,  # 路径损耗系数
-        "Bag": 1.5e1000000,  # 信道带宽 Hz
-        "Pag": 1,  # 信号传输功率
-        "sigma": 5,  # 信道内高斯噪声功率
+        "d": 3000,  # 节点到基站的距离 m
+        "dH": 20,  # 高度差 m
+        "n": 4,  # 路径损耗系数
+        "Bag": 1000000,  # 信道带宽 Hz
+        "Pag": 0.01,  # 信号传输功率 w
+        "sigma": 10e-10,  # 信道内高斯噪声功率 dbm
     }
 
     # 路径损耗模型
@@ -49,24 +49,23 @@ def plane_communicate():
         """
         return path_loss_model(dH, dH, n) + 10 * n * math.log10(d / dH)
 
-    # cag = Bag * log2(1 + (Pag * path_loss_model(d, dH, n)) / sigma)
+    # cag = Bag * log2(1 + Pag/(sigma * dH ^ n))
     Cag = cfg_plane["Bag"] * \
-          math.log2(1 + (cfg_plane["Pag"] * path_loss_model(cfg_plane["d"], cfg_plane["dH"], cfg_plane["n"]))
-                    / cfg_plane["sigma"])
+            math.log2(1 + cfg_plane["Pag"] / (cfg_plane["sigma"] * cfg_plane["dH"] ** cfg_plane["n"]))
     return Cag
 
 
 def satellite_communicate():
     # 节点跟卫星通信
     cfg_sa = {
-        "Gt": 25,  # 发射天线增益
-        "Gr": 30,  # 接收天线增益
+        "Gt": 17,  # 发射天线增益 db
+        "Gr": 25,  # 接收天线增益 db
         "lamda": 0.02,  # 波长 m
-        "d": 1000000,  # 节点到基站的距离
+        "d": 800000,  # 节点到基站的距离 m
         "Bsa": 2400000,  # 信道带宽 Hz
-        "Psa": 200,  # 信号传输功率
+        "Psa": 200,  # 信号传输功率 w
         "a": 3,  # 路径损耗系数
-        "sigma": 30,  # 信道内高斯噪声功率
+        "sigma": 10000,  # 信道内高斯噪声功率 db
     }
 
     # 路径损耗模型
@@ -100,5 +99,5 @@ def Calculate_time(index):
 
 if __name__ == "__main__":
     print(ground_communicate())
-    # print(plane_communicate())
+    print(plane_communicate())
     print(satellite_communicate())
