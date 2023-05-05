@@ -29,14 +29,17 @@ class Env(gym.Env):
         self.request.RequestCreate()
         self.request.RequestTimeOut()
 
-        # observation_space更新 [频率，时延均值] [3, S_dim]
+        # observation_space更新 [频率，时延均值, 上一时刻缓存内容] [3, S_dim]
         frequency = np.zeros(shape=(len(self.observation_space[0])))
         time_out = np.zeros(shape=(len(self.observation_space[1])))
         cache_index = np.zeros(shape=(len(self.observation_space[2])))
         for i in range(len(self.observation_space[0])):
             frequency[i] += self.request.request.count(i)
         for i in range(len(self.request.request)):
-            time_out[self.request.request[i]] += round(self.request.time_out[i] / frequency[self.request.request[i]])
+            time_out[self.request.request[i]] += self.request.time_out[i]
+        for index in range(len(self.observation_space[1])):
+            if frequency[index] != 0:
+                time_out[index] = time_out[index] / frequency[index]
         for index in action:
             cache_index[index] = 1
         self.observation_space[0] = frequency  # 频率
@@ -57,14 +60,16 @@ class Env(gym.Env):
         self.request.RequestCreate()
         self.request.RequestTimeOut()
 
-        # observation_space更新 [频率，时延均值] [3, S_dim]
+        # observation_space更新 [频率，时延均值, 上一时刻缓存内容] [3, S_dim]
         frequency = np.zeros(shape=(len(self.observation_space[0])))
         time_out = np.zeros(shape=(len(self.observation_space[1])))
         cache_index = np.zeros(shape=(len(self.observation_space[2])))
         for i in range(len(self.observation_space[0])):
             frequency[i] += self.request.request.count(i)
         for i in range(len(self.request.request)):
-            time_out[self.request.request[i]] += round(self.request.time_out[i] / frequency[self.request.request[i]])
+            time_out[self.request.request[i]] += self.request.time_out[i]
+        for index in range(len(self.observation_space[1])):
+            time_out[index] = round(time_out[index] / frequency[index])
         self.observation_space[0] = frequency  # 频率
         self.observation_space[1] = time_out  # 时延均值
         self.observation_space[2] = cache_index  # 上一时刻缓存内容
@@ -96,7 +101,6 @@ if __name__ == "__main__":
         time_out_mean[i] += observation_space[1][i]
         if observation_space[0][i] != 0:
             dic[i] += 1
-
     while True:
         # observation_space [频率，时延均值, 上一时刻缓存状态] [3, S_dim]
         observation_space, _, done, _, _ = env.step(np.arange(a_dim))

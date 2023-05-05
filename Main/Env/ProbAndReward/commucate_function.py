@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from Main.Env.ProbAndReward.probability import ProbabilityMass
 
 
 def ground_communicate():
@@ -51,7 +52,7 @@ def plane_communicate():
 
     # cag = Bag * log2(1 + Pag/(sigma * dH ^ n))
     Cag = cfg_plane["Bag"] * \
-            math.log2(1 + cfg_plane["Pag"] / (cfg_plane["sigma"] * cfg_plane["dH"] ** cfg_plane["n"]))
+          math.log2(1 + cfg_plane["Pag"] / (cfg_plane["sigma"] * cfg_plane["dH"] ** cfg_plane["n"]))
     return Cag
 
 
@@ -83,8 +84,9 @@ def satellite_communicate():
     return Csa
 
 
+
 file_weight = {
-    i: 1000 for i in range(0, 10000)
+    i: ProbabilityMass.Poisson(i, 2.2) for i in range(0, 50)
 }
 
 
@@ -93,11 +95,14 @@ def Calculate_time(index):
     rate = ground_communicate()  # 地面
     # rate = plane_communicate()    # 无人机
     # rate = satellite_communicate()    # 卫星
-    time = file_weight[index] / rate
+    file_scale = [1000000, 5000000]
+    file = (file_scale[1] - file_scale[0]) * file_weight[index] + file_scale[0]
+    time = file / rate
     return time
 
 
 if __name__ == "__main__":
-    print(ground_communicate())
-    print(plane_communicate())
-    print(satellite_communicate())
+    # print(ground_communicate())
+    # print(plane_communicate())
+    # print(satellite_communicate())
+    print(Calculate_time(0))
