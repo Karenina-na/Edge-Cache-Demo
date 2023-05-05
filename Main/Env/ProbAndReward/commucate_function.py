@@ -84,9 +84,8 @@ def satellite_communicate():
     return Csa
 
 
-
 file_weight = {
-    i: ProbabilityMass.Poisson(i, 2.2) for i in range(0, 50)
+    i: ProbabilityMass.Poisson(i, 10.5) for i in range(0, 100)
 }
 
 
@@ -95,14 +94,15 @@ def Calculate_time(index):
     rate = ground_communicate()  # 地面
     # rate = plane_communicate()    # 无人机
     # rate = satellite_communicate()    # 卫星
-    file_scale = [1000000, 5000000]
+    file_scale = [1000000, 5000000]  # 文件大小范围
     file = (file_scale[1] - file_scale[0]) * file_weight[index] + file_scale[0]
     time = file / rate
-    return time
+    return time * 1000  # ms
 
 
 if __name__ == "__main__":
     # print(ground_communicate())
     # print(plane_communicate())
     # print(satellite_communicate())
-    print(Calculate_time(0))
+    for i in range(20):
+        print(Calculate_time(i))

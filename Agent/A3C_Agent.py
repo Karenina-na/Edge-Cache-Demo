@@ -64,6 +64,7 @@ class Agent(nn.Module):
         :param x:   状态 [batch_size, state_dim]
         :return:    动作分布 [batch_size, action_dim], 价值函数 [batch_size, 1]
         """
+        x = x.reshape(x.shape[0], self.s_dim)
         pi1 = torch.tanh(self.pi1(x))
         logits = self.pi2(pi1)
         v1 = torch.tanh(self.v1(x))
@@ -99,7 +100,6 @@ class Agent(nn.Module):
         :param next_state:  下一状态 [batch_size, state_dim]
         """
         self.train()
-
         # 计算下一状态的价值
         _, value_next_state = self.forward(next_state)
         value_next_state = value_next_state.reshape(-1)
@@ -146,7 +146,6 @@ if __name__ == "__main__":
     # print("state shape:", s.shape)
     # print("action prob shape:", a.shape)
     # print("reward shape:", r.shape)
-    a = torch.rand([batch_size, 30], dtype=torch.float32)
-    agent = Agent(s_dim=30, a_dim=30, GAMMA=0.9, a_number=8)
+    agent = Agent(s_dim=30, a_dim=20, GAMMA=0.9, a_number=8)
     # print(agent(s))
     print(agent.choose_action(s))

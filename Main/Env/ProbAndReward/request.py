@@ -15,8 +15,8 @@ class Request:
         # self.class_sigma = 10
         # self.lam = 2.2
         self.a = 0.6
-        # 时延范围
-        self.time_out_range = [10, 10000]
+        # 超时时间
+        self.time_out_max = 8000
 
         # 标准时延
         for i in range(len(self.state_space)):

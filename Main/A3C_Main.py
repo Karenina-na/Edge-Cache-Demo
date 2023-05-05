@@ -94,12 +94,11 @@ def push_and_pull(optimizer: torch.optim, local_net: Agent, global_net: Agent, d
     :param n_bs: 一个batch存储的下一个状态
     :return:
     """
-
     # 计算损失函数
     ba = np.array(ba)
     actor_loss, critic_loss = \
         local_net.loss_func(
-            v_wrap(np.vstack(bs)),
+            v_wrap(np.array(bs)),
             v_wrap(np.array(ba), dtype=np.int64) if ba[0].dtype == np.int64 else v_wrap(np.vstack(ba)),
             v_wrap(np.array(br)),
             v_wrap(np.array(n_bs)),
@@ -120,16 +119,16 @@ def push_and_pull(optimizer: torch.optim, local_net: Agent, global_net: Agent, d
     local_net.load_state_dict(global_net.state_dict())
 
 
-UPDATE_GLOBAL_ITER = 20
-PARALLEL_NUM = 6
+UPDATE_GLOBAL_ITER = 10
+PARALLEL_NUM = 14
 GAMMA = 0.9
-MAX_EP = 3000
+MAX_EP = 1000
 LEARNING_RATE = 1e-2
 BETAS = (0.92, 0.999)
 MODEL_PATH = "../Result/checkpoints"
 # MODEL_PATH = None
-A_dim = 30  # 缓存内容索引大小
-S_dim = 4  # 缓存空间大小
+A_dim = 20  # 缓存内容索引大小
+S_dim = 20  # 状态空间
 A_number = 4  # 缓存空间大小
 Request_number = 100  # 一次请求的请求数量
 Stop_number = 10000  # 环境请求最大数量
@@ -140,7 +139,7 @@ def train():
     N_S = S_dim
     N_A = A_dim
 
-    gnet = Agent(N_S, N_A, GAMMA, MODEL_PATH, A_number)  # global network
+    gnet = Agent(3 * N_S, N_A, GAMMA, MODEL_PATH, A_number)  # global network
     gnet.share_memory()  # share the global parameters in multiprocessing
     opt = SharedAdam(gnet.parameters(), lr=LEARNING_RATE, betas=BETAS)  # global optimizer
     global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
@@ -179,10 +178,10 @@ def train():
     plt.show()
 
     print("game over")
-    print("Init network %f" % (env_test.cache / env_test.total))
-
+    print("Init network cache hit ratio %f" % (env_test.cache / env_test.total))
+    print("Init network cache time out %f" % (env_test.time_out_file / (env_test.total - env_test.cache)))
     # 玩游戏
-    env_test = Env(S_dim, A_dim, A, Request_number, Stop_number)
+    env_test = Env(S_dim, A_dim, Request_number, Stop_number)
     s, _ = env_test.reset()
     while True:
         a = gnet.choose_action(v_wrap(s[None, :]))
@@ -191,17 +190,17 @@ def train():
             break
     env_test.close()
 
-    print("last network %f" % (env_test.cache / env_test.total))
-
+    print("last network cache hit ratio %f" % (env_test.cache / env_test.total))
+    print("last network cache time out %f" % (env_test.time_out_file / (env_test.total - env_test.cache)))
     # 保存模型
     gnet.save_model()
 
 
 def test():
-    env_test = Env(S_dim, A_dim, A, Request_number, Stop_number)
+    env_test = Env(S_dim, A_dim,  Request_number, Stop_number)
     N_S = S_dim
     N_A = A_dim
-    gnet = Agent(N_S, N_A, GAMMA, MODEL_PATH, A_number)  # global network
+    gnet = Agent(3 * N_S, N_A, GAMMA, MODEL_PATH, A_number)  # global network
     s, _ = env_test.reset()
     while True:
         a = gnet.choose_action(v_wrap(s[None, :]))
