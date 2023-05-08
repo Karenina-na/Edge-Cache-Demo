@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from Main.Env.ProbAndReward.probability import ProbabilityMass
+from probability import ProbabilityMass
 
 
 def ground_communicate():
@@ -11,8 +11,8 @@ def ground_communicate():
         "lamda": 0.125,  # 波长 m
         "n": 2,  # 路径损耗系数
         "Bg": 1000000,  # 基站的带宽 Hz
-        "Pg": 1,  # 信号传输功率 w
-        "sigma": 0.1,  # 信道内高斯噪声功率 db
+        "Pg": 0.5,  # 信号传输功率 w
+        "sigma": 0.01,  # 信道内高斯噪声功率 W
     }
 
     # 路径损耗模型
@@ -34,12 +34,12 @@ def ground_communicate():
 def plane_communicate():
     # 节点跟无人机通信
     cfg_plane = {
-        "d": 3000,  # 节点到基站的距离 m
-        "dH": 20,  # 高度差 m
-        "n": 4,  # 路径损耗系数
-        "Bag": 1000000,  # 信道带宽 Hz
-        "Pag": 0.01,  # 信号传输功率 w
-        "sigma": 10e-10,  # 信道内高斯噪声功率 dbm
+        "d": 300,  # 节点到基站的距离 m
+        "dH": 15,  # 高度差 m
+        "n": 2,  # 路径损耗系数
+        "Bag": 6000000,  # 信道带宽 Hz
+        "Pag": 2,  # 信号传输功率 w
+        "sigma": 0.01,  # 信道内高斯噪声功率 W
     }
 
     # 路径损耗模型
@@ -59,14 +59,14 @@ def plane_communicate():
 def satellite_communicate():
     # 节点跟卫星通信
     cfg_sa = {
-        "Gt": 17,  # 发射天线增益 db
-        "Gr": 25,  # 接收天线增益 db
-        "lamda": 0.02,  # 波长 m
-        "d": 800000,  # 节点到基站的距离 m
-        "Bsa": 2400000,  # 信道带宽 Hz
-        "Psa": 200,  # 信号传输功率 w
-        "a": 3,  # 路径损耗系数
-        "sigma": 10000,  # 信道内高斯噪声功率 db
+        "Gt": 17,  # 发射天线增益 dbi
+        "Gr": 25,  # 接收天线增益 dbi
+        "lamda": 0.2,  # 波长 m
+        "d": 1000000,  # 节点到基站的距离 m
+        "Bsa": 10000000,  # 信道带宽 Hz
+        "Psa": 150,  # 信号传输功率 w
+        "a": 5,  # 路径损耗系数
+        "sigma": 3,  # 信道内高斯噪声功率 W
     }
 
     # 路径损耗模型
@@ -77,10 +77,10 @@ def satellite_communicate():
         """
         return -10 * math.log10((Gt * Gr * lamda ** 2) / (16 * math.pi ** 2 * d ** 2))
 
-    # Csa = Bsa * log2(1 + (Psa * path_loss_model(d, Gt, Gr, lamda) * exp(-a / 10)) / sigma)
+    # Csa = Bsa * log2(1 + (Psa * path_loss_model(d, Gt, Gr, lamda)) / sigma * exp(2a))
     Csa = cfg_sa["Bsa"] * \
           math.log2(1 + (cfg_sa["Psa"] * path_loss_model(cfg_sa["d"], cfg_sa["Gt"], cfg_sa["Gr"], cfg_sa["lamda"])
-                         * math.exp(-cfg_sa["a"] / 10)) / cfg_sa["sigma"])
+                         ) / (cfg_sa["sigma"]*math.exp(2*cfg_sa["a"])))
     return Csa
 
 
@@ -101,8 +101,8 @@ def Calculate_time(index):
 
 
 if __name__ == "__main__":
-    # print(ground_communicate())
-    # print(plane_communicate())
-    # print(satellite_communicate())
+    # print(str(ground_communicate()/1000000) + " Mbps")
+    # print(str(plane_communicate()/1000000) + " Mbps")
+    # print(str(satellite_communicate()/1000000) + " Mbps")
     for i in range(20):
         print(Calculate_time(i))
