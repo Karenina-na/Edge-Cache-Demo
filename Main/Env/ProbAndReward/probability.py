@@ -66,8 +66,8 @@ def testProbabilityDensity():
     import matplotlib.pyplot as plt
     x = np.linspace(-5, 5, 100)
     y1 = ProbabilityDensity.StandardNormal(x)
-    mu = 2
-    sigma = 3
+    mu = 5
+    sigma = 10
     y2 = ProbabilityDensity.Normal(x, mu, sigma)
     lam = 1
     y3 = ProbabilityDensity.Exponential(x, lam)
@@ -94,8 +94,8 @@ def testDistribution():
 
     import matplotlib.pyplot as plt
     n = 500
-    c = 20
-    p = 0.4
+    c = 30
+    p = 0.5
 
     Bernoulli = []
     for i in range(n):
@@ -139,5 +139,5 @@ def testDistribution():
 
 
 if __name__ == '__main__':
-    # testProbabilityDensity()
-    testDistribution()
+    testProbabilityDensity()
+    # testDistribution()

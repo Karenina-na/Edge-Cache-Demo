@@ -1,7 +1,8 @@
 import numpy as np
 import math
-from Main.Env.ProbAndReward.probability import ProbabilityMass
+from Main.Env.ProbAndReward.probability import ProbabilityDensity
 from Main.Env.param import *
+import matplotlib.pyplot as plt
 
 
 def ground_communicate():
@@ -86,7 +87,7 @@ def satellite_communicate():
 
 
 file_weight = {
-    i: ProbabilityMass.Poisson(i, 10.5) for i in range(0, 100)
+    i: ProbabilityDensity.Normal(i, A_dim/2, 5) for i in range(0, A_dim)
 }
 
 
@@ -108,5 +109,9 @@ if __name__ == "__main__":
     # print(str(ground_communicate()/1000000) + " Mbps")
     # print(str(plane_communicate()/1000000) + " Mbps")
     # print(str(satellite_communicate()/1000000) + " Mbps")
+    time = []
     for i in range(25):
         print(Calculate_time(i))
+        time.append(Calculate_time(i))
+    plt.scatter(range(25), time)
+    plt.show()
