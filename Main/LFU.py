@@ -13,4 +13,4 @@ for i in range(1000):
         lfu[int(index)] = 1
 
 print("cache hit ratio %f" % (env.cache / env.total))
-print("cache time out %f" % (env.time_out_file / (env.total - env.cache)))
+print("cache time out %f" % (env.time_out_file / env.total))

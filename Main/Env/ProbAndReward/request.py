@@ -67,8 +67,8 @@ class Request:
 
 
 if __name__ == '__main__':
-    states = np.arange(5)
-    request_number = 50
+    states = np.arange(25)
+    request_number = 1000
     request = Request(states, request_number)
     request.RequestCreate()
     request.RequestTimeOut()

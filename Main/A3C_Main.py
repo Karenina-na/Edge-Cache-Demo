@@ -182,7 +182,7 @@ def train():
 
     print("game over")
     print("Init network cache hit ratio %f" % (env_test.cache / env_test.total))
-    print("Init network cache time out %f" % (env_test.time_out_file / (env_test.total - env_test.cache)))
+    print("Init network cache time out %f" % (env_test.time_out_file / env_test.total))
     # 玩游戏
     env_test = Env(S_dim, A_dim, Request_number, Stop_number)
     s, _ = env_test.reset()
@@ -198,7 +198,7 @@ def train():
     env_test.close()
 
     print("last network cache hit ratio %f" % (env_test.cache / env_test.total))
-    print("last network cache time out %f" % (env_test.time_out_file / (env_test.total - env_test.cache)))
+    print("last network cache time out %f" % (env_test.time_out_file / env_test.total))
     # 保存模型
     gnet.save_model()
 

@@ -103,10 +103,10 @@ class Env(gym.Env):
 
 
 if __name__ == "__main__":
-    s_dim = 5
-    a_dim = 3
-    request_number = 20
-    stop_number = 100
+    s_dim = 10
+    a_dim = 10
+    request_number = 200
+    stop_number = 500
     env = Env(s_dim, a_dim, request_number, stop_number)
     frequency = np.zeros(shape=s_dim)
     time_out_mean = np.zeros(shape=s_dim)
@@ -122,7 +122,8 @@ if __name__ == "__main__":
             dic[i] += 1
     while True:
         # observation_space [频率，时延均值, 上一时刻缓存状态] [3, S_dim]
-        observation_space, _, done, _, _ = env.step(np.arange(a_dim))
+        L = np.zeros(shape=len(env.request_time_out_dis), dtype=int).tolist()
+        observation_space, _, done, _, _ = env.step(L)
         request_error_dis = env.request_time_out_dis
         for i in range(s_dim):
             frequency[i] += observation_space[0][i]

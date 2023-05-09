@@ -23,4 +23,4 @@ for i in range(Stop_number * Request_number):
     fifo.pop(0)
 
 print("cache hit ratio %f" % (env.cache / env.total))
-print("cache time out %f" % (env.time_out_file / (env.total - env.cache)))
+print("cache time out %f" % (env.time_out_file / env.total))
