@@ -129,8 +129,8 @@ GAMMA = 0.9
 MAX_EP = 1000
 LEARNING_RATE = 1e-2
 BETAS = (0.92, 0.999)
-MODEL_PATH = "../Result/checkpoints"
-# MODEL_PATH = None
+# MODEL_PATH = "../Result/checkpoints"
+MODEL_PATH = None
 
 
 def train():

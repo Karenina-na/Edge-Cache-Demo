@@ -1,6 +1,7 @@
 import numpy as np
 import math
 from Main.Env.ProbAndReward.probability import ProbabilityMass
+from Main.Env.param import *
 
 
 def ground_communicate():
@@ -91,9 +92,12 @@ file_weight = {
 
 # 计算传输时间
 def Calculate_time(index):
-    rate = ground_communicate()  # 地面
-    # rate = plane_communicate()    # 无人机
-    # rate = satellite_communicate()    # 卫星
+    if communicate_type=="ground":
+        rate = ground_communicate()  # 地面
+    elif communicate_type=="plane":
+        rate = plane_communicate()    # 无人机
+    else:
+        rate = satellite_communicate()    # 卫星
     file_scale = [1000000, 5000000]  # 文件大小范围
     file = (file_scale[1] - file_scale[0]) * file_weight[index] + file_scale[0]
     time = file / rate

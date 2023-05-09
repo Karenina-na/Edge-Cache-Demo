@@ -7,9 +7,9 @@ _, _ = env.reset()
 lfu = [-1 for i in range(S_dim)]
 for i in range(1000):
     obs, _, _, _, _ = env.step(lfu)
-    List = np.argsort(np.array(obs[0]))[-A_number:]
+    L = np.argsort(np.array(obs[0]))[-A_number:]
     lfu = np.zeros(shape=A_dim, dtype=int).tolist()
-    for index in List:
+    for index in L:
         lfu[int(index)] = 1
 
 print("cache hit ratio %f" % (env.cache / env.total))

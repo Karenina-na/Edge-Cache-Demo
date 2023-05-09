@@ -1,6 +1,7 @@
 import numpy as np
 from Main.Env.ProbAndReward.probability import ProbabilityDensity, ProbabilityMass
 from Main.Env.ProbAndReward.commucate_function import Calculate_time
+from Main.Env.param import *
 
 
 class Request:
@@ -14,9 +15,9 @@ class Request:
         # self.sigma = 1
         # self.class_sigma = 10
         # self.lam = 2.2
-        self.a = 0.6
+        self.a = a
         # 超时时间
-        self.time_out_max = 120
+        self.time_out_max = time_out
 
         # 标准时延
         for i in range(len(self.state_space)):
