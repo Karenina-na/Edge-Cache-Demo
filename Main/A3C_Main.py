@@ -4,6 +4,7 @@ import os
 from Agent.A3C_Agent import Agent, SharedAdam
 import numpy as np
 from Env.env import Env
+from Main.Env.param import *
 
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -55,7 +56,10 @@ class Worker(mp.Process):
             while True:
                 # 选择动作并执行
                 action = self.lnet.choose_action(v_wrap(state[None, :]))
-                next_state, reward, done, _, _ = self.env.step(action[0])
+                L = np.zeros(shape=A_dim, dtype=int).tolist()
+                for index in action[0]:
+                    L[index] = 1
+                next_state, reward, done, _, _ = self.env.step(L)
                 ep_r += reward
                 buffer_a.append(action[0])
                 buffer_s.append(state)
@@ -127,11 +131,6 @@ LEARNING_RATE = 1e-2
 BETAS = (0.92, 0.999)
 MODEL_PATH = "../Result/checkpoints"
 # MODEL_PATH = None
-A_dim = 20  # 缓存内容索引大小
-S_dim = 20  # 状态空间
-A_number = 4  # 缓存空间大小
-Request_number = 100  # 一次请求的请求数量
-Stop_number = 10000  # 环境请求最大数量
 
 
 def train():
@@ -149,7 +148,11 @@ def train():
     s, _ = env_test.reset()
     while True:
         a = gnet.choose_action(v_wrap(s[None, :]))
-        s, _, d, _, _ = env_test.step(a[0])
+        # 创建索引
+        L = np.zeros(shape=A_dim, dtype=int).tolist()
+        for index in a[0]:
+            L[index] = 1
+        s, _, d, _, _ = env_test.step(L)
         if d:
             break
     env_test.close()
@@ -185,7 +188,11 @@ def train():
     s, _ = env_test.reset()
     while True:
         a = gnet.choose_action(v_wrap(s[None, :]))
-        s, _, d, _, _ = env_test.step(a[0])
+        # 创建索引
+        L = np.zeros(shape=A_dim, dtype=int).tolist()
+        for index in a[0]:
+            L[index] = 1
+        s, _, d, _, _ = env_test.step(L)
         if d:
             break
     env_test.close()

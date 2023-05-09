@@ -22,7 +22,7 @@ class Env(gym.Env):
         reward_time_out = 0
         for index in range(len(self.request.request)):
             self.total += 1
-            if self.request.request[index] in action:
+            if action[self.request.request[index]] == 1:
                 # 缓存命中
                 reward_hit += 1
                 self.cache += 1
@@ -34,12 +34,9 @@ class Env(gym.Env):
                     reward_time_out += -1
                     self.time_out_file += 1
                 # else:
-                    # 未超时
-                    # reward_time_out += 1
+                # 未超时
+                # reward_time_out += 1
         reward = reward_hit + reward_time_out
-        # 生成新的请求
-        self.request.RequestCreate()
-        self.request.RequestTimeOut()
 
         # observation_space更新 [频率，时延均值, 上一时刻缓存内容] [3, S_dim]
         frequency = np.zeros(shape=(len(self.observation_space[0])))
@@ -64,16 +61,16 @@ class Env(gym.Env):
         for i in range(len(self.request.request)):
             self.request_time_out_dis[self.request.request[i]].append(self.request.time_out[i])  # 时延分布
 
+        # 生成新的请求
+        self.request.RequestCreate()
+        self.request.RequestTimeOut()
+
         # 结束条件
         if self.total >= self.stop_number:
             return self.observation_space, reward, True, False, False
         return self.observation_space, reward, False, False, False
 
     def reset(self):
-        # 生成新的请求
-        self.request.RequestCreate()
-        self.request.RequestTimeOut()
-
         # observation_space更新 [频率，时延均值, 上一时刻缓存内容] [3, S_dim]
         frequency = np.zeros(shape=(len(self.observation_space[0])))
         for i in range(len(self.observation_space[0])):
@@ -97,6 +94,11 @@ class Env(gym.Env):
 
         self.cache = 0
         self.total = 0
+
+        # 生成新的请求
+        self.request.RequestCreate()
+        self.request.RequestTimeOut()
+
         return self.observation_space, False
 
 

@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from probability import ProbabilityMass
+from Main.Env.ProbAndReward.probability import ProbabilityMass
 
 
 def ground_communicate():
@@ -104,5 +104,5 @@ if __name__ == "__main__":
     # print(str(ground_communicate()/1000000) + " Mbps")
     # print(str(plane_communicate()/1000000) + " Mbps")
     # print(str(satellite_communicate()/1000000) + " Mbps")
-    for i in range(20):
+    for i in range(25):
         print(Calculate_time(i))
