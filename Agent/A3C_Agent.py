@@ -6,6 +6,7 @@ import numpy as np
 import os
 
 from multiprocessing import Process, Queue
+from itertools import combinations
 
 
 def set_init(layers: list):
@@ -32,12 +33,11 @@ class SharedAdam(torch.optim.Adam):
 
 
 class Agent(nn.Module):
-    def __init__(self, s_dim: int, a_dim: int, GAMMA: float = 0.9, model_path=None, a_number=None):
+    def __init__(self, s_dim: int, a_dim: int, GAMMA: float = 0.9, model_path=None):
         super(Agent, self).__init__()
         self.s_dim = s_dim
         self.a_dim = a_dim
         self.GAMMA = GAMMA
-        self.a_number = a_number
         # policy network
         self.pi1 = nn.Linear(s_dim, 128)
         self.pi2 = nn.Linear(128, a_dim)
@@ -64,7 +64,6 @@ class Agent(nn.Module):
         :param x:   状态 [batch_size, state_dim]
         :return:    动作分布 [batch_size, action_dim], 价值函数 [batch_size, 1]
         """
-        x = x.reshape(x.shape[0], self.s_dim)
         pi1 = torch.tanh(self.pi1(x))
         logits = self.pi2(pi1)
         v1 = torch.tanh(self.v1(x))
@@ -80,44 +79,28 @@ class Agent(nn.Module):
         self.eval()
         logits, _ = self.forward(state)
         prob = F.softmax(logits, dim=1).data
-        actions = []
-        for i in range(prob.shape[0]):
-            # 不重复抽样
-            # action = torch.multinomial(prob[i], self.a_number).detach().numpy().tolist()
-            sorted_prob, sorted_index = torch.sort(prob[i], dim=0, descending=True)
-            action = []
-            for j in range(self.a_number):
-                action.append(sorted_index[j].detach().numpy().tolist())
-            actions.append(action)
-        return actions
+        m = self.distribution(prob)
+        return m.sample().numpy()[0]
 
-    def loss_func(self, state: torch.Tensor, actions: torch.Tensor, reward: torch.Tensor, next_state: torch.Tensor, GAMMA):
+    def loss_func(self, state: torch.Tensor, actions: torch.Tensor, target: torch.Tensor):
         """
         计算损失函数
         :param state:   状态 [batch_size, state_dim]
         :param actions: 动作分布 [batch_size, action_dim]
-        :param reward:  奖励 [batch_size, 1]
-        :param next_state:  下一状态 [batch_size, state_dim]
+        :param target: target [batch_size, 1]
+        :return: actor_loss, critic_loss
         """
         self.train()
-        # 计算下一状态的价值
-        _, value_next_state = self.forward(next_state)
-        value_next_state = value_next_state.reshape(-1)
-        # 计算当前状态的目标价值
-        buffer_v_target = []
-        for i in range(len(reward)):
-            buffer_v_target.append(reward[i] + GAMMA * value_next_state[i])
-        buffer_v_target = torch.tensor(buffer_v_target, dtype=torch.float32)
-
         # 计算当前状态的价值
         logits, values = self.forward(state)
-        values = values.reshape(-1)
-        logits = logits.reshape(-1, self.a_dim)
+
+        # 计算奖励    R = r + GAMMA * target
+        returns = target
 
         # 计算 advantage
         advantages = []
-        for i in range(len(buffer_v_target)):
-            advantages.append(buffer_v_target[i] - values[i])
+        for i in range(len(target)):
+            advantages.append(returns[i] - values[i])
 
         # 计算损失函数
         actor_loss = []
@@ -125,8 +108,8 @@ class Agent(nn.Module):
         for logit, advantage, action in zip(logits, advantages, actions):
             m = self.distribution(F.softmax(logit, dim=0))
             log_prob = m.log_prob(action)
-            actor_loss.append(log_prob * advantage)
-            critic_loss.append(advantage ** 2)
+            critic_loss.append(F.smooth_l1_loss(values, returns))
+            actor_loss.append(-log_prob * advantage)
 
         return torch.stack(actor_loss).sum(), torch.stack(critic_loss).sum()
 
@@ -138,14 +121,26 @@ class Agent(nn.Module):
             print("no model to save")
 
 
+class ActionSpace:
+    def __init__(self, n_action, action_space, ):
+        self.action_space = np.arange(action_space)  # 动作空间
+
+        self.dic = []  # 存储编号-枚举的动作
+
+        comb = combinations(self.action_space, n_action)
+        for i in comb:
+            self.dic.append(i)
+
+        self.n_action = len(self.dic)  # 动作空间的大小
+
+
 if __name__ == "__main__":
-    batch_size = 2
-    s = torch.rand([batch_size, 30], dtype=torch.float32)
-    # a = torch.rand([batch_size, 10], dtype=torch.float32)
-    # r = torch.rand([batch_size, 1], dtype=torch.float32)
-    # print("state shape:", s.shape)
-    # print("action prob shape:", a.shape)
-    # print("reward shape:", r.shape)
-    agent = Agent(s_dim=30, a_dim=20, GAMMA=0.9, a_number=8)
-    # print(agent(s))
-    print(agent.choose_action(s))
+    batch_size = 5
+    s = torch.rand([batch_size, 5], dtype=torch.float32)
+    a = torch.rand([batch_size, 10], dtype=torch.float32)
+    r = torch.rand([batch_size, 1], dtype=torch.float32)
+    print("state shape:", s.shape)
+    print("action prob shape:", a.shape)
+    print("reward shape:", r.shape)
+    agent = Agent(s_dim=5, a_dim=10, GAMMA=0.9)
+    print(agent(s))

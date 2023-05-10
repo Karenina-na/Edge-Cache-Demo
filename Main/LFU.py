@@ -7,6 +7,7 @@ _, _ = env.reset()
 lfu = [-1 for i in range(S_dim)]
 for i in range(1000):
     obs, _, _, _, _ = env.step(lfu)
+    obs = np.array(obs).reshape(3, A_dim)
     L = np.argsort(np.array(obs[0]))[-A_number:]
     lfu = np.zeros(shape=A_dim, dtype=int).tolist()
     for index in L:

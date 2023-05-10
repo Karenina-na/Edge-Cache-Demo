@@ -13,9 +13,10 @@ for i in range(Stop_number * Request_number):
         if data != -1:
             L[data] = 1
     obs, _, _, _, _ = env.step(L)
+    obs = np.array(obs).reshape(3, A_dim)
     # 找到值为1的序号
     cache = 0
-    for index in range(len(obs[0])):
+    for index in range(A_dim):
         if obs[0][index] == 1:
             cache = index
             break

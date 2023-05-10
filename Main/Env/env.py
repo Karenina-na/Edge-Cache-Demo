@@ -39,6 +39,7 @@ class Env(gym.Env):
                     reward_time_out += 1
         reward = w * reward_hit + (1 - w) * reward_time_out
 
+        self.observation_space = np.array(self.observation_space).reshape(3, S_dim)
         # observation_space更新 [频率，时延均值, 上一时刻缓存内容] [3, S_dim]
         frequency = np.zeros(shape=(len(self.observation_space[0])))
         for i in range(len(self.observation_space[0])):
@@ -67,11 +68,14 @@ class Env(gym.Env):
         self.request.RequestTimeOut()
 
         # 结束条件
+        # 平展状态空间
+        self.observation_space = np.array(self.observation_space).reshape(-1)
         if self.total >= self.stop_number:
             return self.observation_space, reward, True, False, False
         return self.observation_space, reward, False, False, False
 
     def reset(self):
+        self.observation_space = np.array(self.observation_space).reshape(3, S_dim)
         # observation_space更新 [频率，时延均值, 上一时刻缓存内容] [3, S_dim]
         frequency = np.zeros(shape=(len(self.observation_space[0])))
         for i in range(len(self.observation_space[0])):
@@ -100,6 +104,8 @@ class Env(gym.Env):
         self.request.RequestCreate()
         self.request.RequestTimeOut()
 
+        # 平展状态空间
+        self.observation_space = np.array(self.observation_space).reshape(-1)
         return self.observation_space, False
 
 
