@@ -3,7 +3,7 @@ import torch.multiprocessing as mp
 import os
 from Agent.A3C_Agent import Agent, SharedAdam
 import numpy as np
-from Env.env import Env, ActionSpace
+from Env.env import Env
 from Main.Env.param import *
 
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -123,11 +123,11 @@ def push_and_pull(optimizer: torch.optim, local_net: Agent, global_net: Agent, d
     local_net.load_state_dict(global_net.state_dict())
 
 
-UPDATE_GLOBAL_ITER = 20
+UPDATE_GLOBAL_ITER = 30
 PARALLEL_NUM = 10
 GAMMA = 0.9
 MAX_EP = 1000
-LEARNING_RATE = 1e-2
+LEARNING_RATE = 1
 BETAS = (0.92, 0.999)
 # MODEL_PATH = "../Result/checkpoints"
 MODEL_PATH = None
@@ -137,8 +137,6 @@ def train():
     env = Env(S_dim, A_dim, Request_number, Stop_number)
     N_S = S_dim
     N_A = A_dim
-
-    action_space = ActionSpace(A_number, A_dim)
 
     gnet = Agent(3 * N_S, N_A, GAMMA, MODEL_PATH, A_number)  # global network
     gnet.share_memory()  # share the global parameters in multiprocessing
@@ -171,8 +169,6 @@ def train():
             break
     res = np.array(res)
     [w.join() for w in workers]
-
-    env.close()
 
     import matplotlib.pyplot as plt
 

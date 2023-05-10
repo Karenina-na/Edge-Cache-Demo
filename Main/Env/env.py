@@ -23,22 +23,20 @@ class Env(gym.Env):
         reward_time_out = 0
         for index in range(len(self.request.request)):
             self.total += 1
-            print(action)
             if action[self.request.request[index]] == 1:
                 # 缓存命中
                 reward_hit += 1
                 self.cache += 1
-                if self.request.time_out[index] > self.request.time_out_max:
-                    # 缓存了超时的文件
-                    reward_time_out += 1
             else:
                 # 缓存没命中
                 reward_hit += -1
                 if self.request.time_out[index] > self.request.time_out_max:
-                    # 没命中且超时
-                    self.time_out_file += 1
+                    # 超时
                     reward_time_out += -1
-
+                    self.time_out_file += 1
+                else:
+                    # 未超时
+                    reward_time_out += 1
         reward = w * reward_hit + (1 - w) * reward_time_out
 
         # observation_space更新 [频率，时延均值, 上一时刻缓存内容] [3, S_dim]
@@ -104,18 +102,6 @@ class Env(gym.Env):
 
         return self.observation_space, False
 
-
-class ActionSpace:
-    def __init__(self, n_action, action_space, ):
-        self.action_space = np.arange(action_space)  # 动作空间
-
-        self.dic = []  # 存储编号-枚举的动作
-
-        comb = combinations(self.action_space, n_action)
-        for i in comb:
-            self.dic.append(i)
-
-        self.n_action = len(self.dic)  # 动作空间的大小
 
 
 if __name__ == "__main__":
