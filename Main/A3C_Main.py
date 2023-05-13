@@ -1,7 +1,7 @@
 import torch
 import torch.multiprocessing as mp
 import os
-from Agent.A3C_Agent import Agent, SharedAdam, ActionSpace
+from Agent.A3C_Agent import Agent, SharedAdam
 import numpy as np
 from Main.Env.env import Env
 from Main.Env.param import *
@@ -32,8 +32,7 @@ def record(g_ep, g_ep_r, ep_r, result_queue, name):
 
 
 class Worker(mp.Process):
-    def __init__(self, global_net: Agent, optimizer: torch.optim, g_ep, g_ep_r, result_queue, num: int, env,
-                 action_space):
+    def __init__(self, global_net: Agent, optimizer: torch.optim, g_ep, g_ep_r, result_queue, num: int, env):
         super(Worker, self).__init__()
         self.name = 'w%02i' % num
         self.g_ep, self.g_ep_r, self.res_queue = g_ep, g_ep_r, result_queue
@@ -41,7 +40,6 @@ class Worker(mp.Process):
         # 创建局部网络
         self.lnet = Agent(global_net.s_dim, global_net.a_dim, GAMMA, model_path=MODEL_PATH)
         self.env = env
-        self.action_space = action_space
 
     def run(self):
         """
@@ -51,25 +49,30 @@ class Worker(mp.Process):
         total_step = 1
         while self.g_ep.value < MAX_EP:
             state, _ = self.env.reset()
+            state = np.swapaxes(state, 0, 1)
+            state = np.reshape(state, newshape=(len(state), -1))
             # 一局游戏的数据
             buffer_s, buffer_a, buffer_r = [], [], []
             ep_r = 0.
             while True:
                 # 动作索引
-                a = self.lnet.choose_action(v_wrap(state[None, :]))
-                a_index = self.action_space.dic[a]
-                print(a_index)
-                a_one_hot = np.zeros(A_dim, dtype=np.int32)
-                for index in a_index:
-                    a_one_hot[index] = 1
-                next_state, reward, done, _, _ = self.env.step(a_one_hot)
+                # 动作索引
+                a = []
+                for index in state:
+                    a.append(self.lnet.choose_action(v_wrap(index[None, :])))
+                next_state, reward, done, _, _ = self.env.step(a)
+                next_state = np.swapaxes(next_state, 0, 1)
+                next_state = np.reshape(next_state, newshape=(len(next_state), -1))
                 # 游戏结束，给予惩罚
                 if done:
-                    reward = -1
-                ep_r += reward
-                buffer_a.append(a)
-                buffer_s.append(state)
-                buffer_r.append(reward)
+                    for i in range(len(reward)):
+                        if reward[i] == 0:
+                            reward[i] = -1
+                        ep_r += reward[i]
+                for i in range(len(next_state)):
+                    buffer_a.append(a[i])
+                    buffer_s.append(state[i])
+                    buffer_r.append(reward[i])
                 # 更新全局网络
                 if total_step % UPDATE_GLOBAL_ITER == 0 or done:
                     push_and_pull(self.opt, self.lnet, self.gnet, done, buffer_s, buffer_a, buffer_r, next_state)
@@ -126,9 +129,9 @@ def push_and_pull(optimizer: torch.optim, local_net: Agent, global_net: Agent, d
     # 反向传播，和全局网络同步
     loss = actor_loss + critic_loss
     optimizer.zero_grad()
-    loss.backward()
-    # critic_loss.backward(retain_graph=True)  # 保留计算图
-    # actor_loss.backward()
+    # loss.backward()
+    critic_loss.backward(retain_graph=True)  # 保留计算图
+    actor_loss.backward()
     for lp, gp in zip(local_net.parameters(), global_net.parameters()):
         gp._grad = lp.grad * TAU
     optimizer.step()
@@ -137,29 +140,53 @@ def push_and_pull(optimizer: torch.optim, local_net: Agent, global_net: Agent, d
     local_net.load_state_dict(global_net.state_dict())
 
 
-UPDATE_GLOBAL_ITER = 100
-PARALLEL_NUM = 6
-GAMMA = 0.9
-MAX_EP = 1000
+UPDATE_GLOBAL_ITER = 50
+PARALLEL_NUM = 1
+GAMMA = 0.99
+MAX_EP = 500
 LEARNING_RATE = 1e-1
 BETAS = (0.92, 0.999)
-TAU = 0.1
-MODEL_PATH = "../Result/checkpoints"
+TAU = 1
+MODEL_PATH = None
 
 
 def train():
-    env = Env(S_dim, A_dim, Request_number, Stop_number)
-    action_space = ActionSpace(A_number, A_dim)
-    N_S = S_dim
-    N_A = action_space.n_action
-    gnet = Agent(3 * N_S, N_A, GAMMA, MODEL_PATH)  # global network
+    env = Env()
+    s, info = env.reset()
+    s = np.swapaxes(s, 0, 1)
+    s = np.reshape(s, newshape=(len(s), -1))
+    N_S = s.shape[1]
+    N_A = env.action_space.actions_index_number
+    gnet = Agent(N_S, N_A, GAMMA, MODEL_PATH)  # global network
 
     gnet.share_memory()  # share the global parameters in multiprocessing
     opt = SharedAdam(gnet.parameters(), lr=LEARNING_RATE, betas=BETAS)  # global optimizer
     global_ep, global_ep_r, res_queue = mp.Value('i', 0), mp.Value('d', 0.), mp.Queue()
 
+    # 玩游戏
+    env_init = Env()
+    s, _ = env_init.reset()
+    gnet.type = 'test'
+    cache_hit_init = [0, 0, 0]
+    cache_total_init = [0, 0, 0]
+    node_time_out_init = [0, 0, 0]
+    while True:
+        s = np.swapaxes(s, 0, 1)
+        s = np.reshape(s, newshape=(len(s), -1))
+        # 动作索引
+        a = []
+        for index in s:
+            a.append(gnet.choose_action(v_wrap(index[None, :])))
+        # 步入
+        s, _, d, info, _ = env_init.step(a)
+        cache_hit_init += np.reshape(info["cache_hit"], newshape=(Node_number,))
+        cache_total_init += np.reshape(info["cache_total"], newshape=(Node_number,))
+        node_time_out_init += np.reshape(info["node_timeout"], newshape=(Node_number,))
+        if d:
+            break
+
     # 并发训练
-    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i, env, action_space) for i in range(PARALLEL_NUM)]
+    workers = [Worker(gnet, opt, global_ep, global_ep_r, res_queue, i, env) for i in range(PARALLEL_NUM)]
     print("Start training...")
 
     [w.start() for w in workers]
@@ -182,49 +209,76 @@ def train():
     # plt.show()
 
     # 玩游戏
-    env_test = Env(S_dim, A_dim, Request_number, Stop_number)
-    action_space = ActionSpace(A_number, A_dim)
+    env_test = Env()
     s, _ = env_test.reset()
     gnet.type = 'test'
+    cache_hit = [0, 0, 0]
+    cache_total = [0, 0, 0]
+    node_time_out = [0, 0, 0]
     while True:
-        a = gnet.choose_action(v_wrap(s[None, :]))
-        a_index = action_space.dic[a]
-        a_one_hot = np.zeros(A_dim, dtype=np.int32)
-        for index in a_index:
-            a_one_hot[index] = 1
-        s, _, d, _, _ = env_test.step(a_one_hot)
+        s = np.swapaxes(s, 0, 1)
+        s = np.reshape(s, newshape=(len(s), -1))
+        # 动作索引
+        a = []
+        for index in s:
+            a.append(gnet.choose_action(v_wrap(index[None, :])))
+        # 步入
+        s, _, d, info, _ = env_test.step(a)
+        cache_hit += np.reshape(info["cache_hit"], newshape=(Node_number,))
+        cache_total += np.reshape(info["cache_total"], newshape=(Node_number,))
+        node_time_out += np.reshape(info["node_timeout"], newshape=(Node_number,))
         if d:
             break
 
-    print("last network cache hit ratio %f" % (env_test.cache / env_test.total))
-    print("last network cache time out %f" % (env_test.time_out_file / env_test.total))
+    for i in range(Node_number):
+        print("node %d cache hit ratio %f init" % (i, cache_hit_init[i] / cache_total_init[i]))
+    print()
+    for i in range(Node_number):
+        print("node %d cache time out %f init" % (i, node_time_out_init[i] / cache_total_init[i]))
+    print('-'*100)
+    for i in range(Node_number):
+        print("node %d cache hit ratio %f" % (i, cache_hit[i] / cache_total[i]))
+    print()
+    for i in range(Node_number):
+        print("node %d cache time out %f" % (i, node_time_out[i] / cache_total[i]))
 
     # 保存模型
-    gnet.save_model()
+    # gnet.save_model()
 
 
 def test():
-    env_test = Env(S_dim, A_dim, Request_number, Stop_number)
-    action_space = ActionSpace(A_number, A_dim)
-    N_S = S_dim
-    N_A = action_space.n_action
-    gnet = Agent(3 * N_S, N_A, GAMMA, MODEL_PATH)  # global network
+    env_test = Env()
+    s, info = env_test.reset()
+    s = np.swapaxes(s, 0, 1)
+    s = np.reshape(s, newshape=(len(s), -1))
+    N_S = s.shape[1]
+    N_A = env_test.action_space.actions_index_number
+    gnet = Agent(N_S, N_A, GAMMA, MODEL_PATH)  # global network
     s, _ = env_test.reset()
     gnet.type = "test"
+    cache_hit = [0, 0, 0]
+    cache_total = [0, 0, 0]
+    node_time_out = [0, 0, 0]
     while True:
+        s = np.swapaxes(s, 0, 1)
+        s = np.reshape(s, newshape=(len(s), -1))
         # 动作索引
-        a = gnet.choose_action(v_wrap(s[None, :]))
-        a_index = action_space.dic[a]
-        a_one_hot = np.zeros(A_dim, dtype=np.int32)
-        for index in a_index:
-            a_one_hot[index] = 1
+        a = []
+        for index in s:
+            a.append(gnet.choose_action(v_wrap(index[None, :])))
         # 步入
-        s, _, d, _, _ = env_test.step(a_one_hot)
+        s, _, d, info, _ = env_test.step(a)
+        cache_hit += np.reshape(info["cache_hit"], newshape=(Node_number,))
+        cache_total += np.reshape(info["cache_total"], newshape=(Node_number,))
+        node_time_out += np.reshape(info["node_timeout"], newshape=(Node_number,))
         if d:
             break
 
-    print("cache hit ratio %f" % (env_test.cache / env_test.total))
-    print("last network cache time out %f" % (env_test.time_out_file / env_test.total))
+    for i in range(Node_number):
+        print("node %d cache hit ratio %f" % (i, cache_hit[i] / cache_total[i]))
+    print()
+    for i in range(Node_number):
+        print("node %d cache time out %f" % (i, node_time_out[i] / cache_total[i]))
 
 
 if __name__ == "__main__":

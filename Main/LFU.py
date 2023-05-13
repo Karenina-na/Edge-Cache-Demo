@@ -2,7 +2,7 @@ from Env.env import Env
 import numpy as np
 from Main.Env.param import *
 
-env = Env(S_dim, A_dim, Request_number, Stop_number)
+env = Env(S_dim, A_dim, Request_number, Stop_number * Request_number)
 _, _ = env.reset()
 lfu = [-1 for i in range(S_dim)]
 for i in range(1000):

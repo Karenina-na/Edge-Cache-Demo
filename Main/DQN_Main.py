@@ -5,33 +5,28 @@ import random
 from Agent.DQN_Agent import Agent
 from Main.Env.env import Env
 from Main.Env.param import *
-from Agent.A3C_Agent import ActionSpace
 
 
 def train():
-    action_space = ActionSpace(A_number, A_dim)
-    env = Env(S_dim, A_dim, Request_number, Stop_number)
+    env = Env()
 
     s, info = env.reset()
-
-    n_state = len(s)
-    n_action = action_space.n_action
-
-    """Generate agents"""
-
+    s = np.swapaxes(s, 0, 1)
+    s = np.reshape(s, newshape=(len(s), -1))
+    n_state = s.shape[1]
+    n_action = env.action_space.actions_index_number
     agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train', model_path=model_path)
 
     # 玩游戏
-    action_space = ActionSpace(A_number, A_dim)
-    env_init = Env(S_dim, A_dim, Request_number, Stop_number)
+    env_init = Env()
     s, info = env.reset()
     while True:
-        a = agent.online_net.act(s)
-        a_index = action_space.dic[a]
-        a_one_hot = np.zeros(A_dim, dtype=np.int32)
-        for index in a_index:
-            a_one_hot[index] = 1
-        s, r, done, trunk, info = env_init.step(a_one_hot)  # trunk,info will not be used
+        s = np.swapaxes(s, 0, 1)
+        s = np.reshape(s, newshape=(len(s), -1))
+        a = []
+        for index in s:
+            a.append(agent.online_net.act(index))
+        s, r, done, trunk, info = env_init.step(a)  # trunk,info will not be used
         if done:
             break
 
@@ -40,6 +35,9 @@ def train():
     REWARD_BUFFER = np.zeros(shape=n_episode)
 
     for episode_i in range(n_episode):
+        s, info = env.reset()
+        s = np.swapaxes(s, 0, 1)
+        s = np.reshape(s, newshape=(len(s), -1))
 
         # 一次游戏的总reward
         episode_reward = 0
@@ -53,27 +51,29 @@ def train():
             # 概率epsilon随机选择动作，概率1-epsilon选择最优动作 online网络
             random_sample = random.random()
             if random_sample <= epsilon:
-                a = np.random.choice(n_action)
+                a = []
+                for i in range(len(s)):
+                    a.append(np.random.randint(n_action))
             else:
-                a = agent.online_net.act(s)
-
-            a_index = action_space.dic[a]
-            print(a_index)
-            a_one_hot = np.zeros(A_dim, dtype=np.int32)
-            for index in a_index:
-                a_one_hot[index] = 1
+                a = []
+                for index in s:
+                    a.append(agent.online_net.act(index))
 
             # 执行动作
-            s_, r, done, trunk, info = env.step(a_one_hot)  # trunk,info will not be used
+            s_, r, done, trunk, info = env.step(a)  # trunk,info will not be used
 
             # 记录经验
-            agent.memo.add_memo(s, a, r, done, s_)
+            s_ = np.swapaxes(s_, 0, 1)
+            s_ = np.reshape(s_, newshape=(len(s), -1))
+            for i in range(len(s)):
+                agent.memo.add_memo(s[i], a[i], r[i], done, s_[i])
 
             # 更新状态
             s = s_
 
             # 记录奖励
-            episode_reward += r
+            for i in range(len(r)):
+                episode_reward += r[i]
 
             if done:
                 s, info = env.reset()
@@ -118,44 +118,41 @@ def train():
             # 如果奖励到达一定值，演示
             if episode_i != 0 and np.mean(REWARD_BUFFER[:episode_i]) >= DEMO_REWARD:
                 count = 0
-                action_space = ActionSpace(A_number, A_dim)
-                env_e = Env(S_dim, A_dim, Request_number, Stop_number)
+                env_e = Env()
 
                 s, info = env.reset()
-
-                n_state = len(s)
-                n_action = action_space.n_action
-                s, info = env_e.reset()
+                s = np.reshape(s, newshape=(1, -1))
+                n_action = action_space.action_space.actions_index_number
                 # 演示
+                s, info = env.reset()
                 step = 0
                 while True:
-                    a = agent.online_net.act(s)
-                    a_index = action_space.dic[a]
-                    a_one_hot = np.zeros(A_dim, dtype=np.int32)
-                    for index in a_index:
-                        a_one_hot[index] = 1
-                    s, r, done, trunk, info = env_e.step(a_one_hot)
-                    count += r
+                    s = np.swapaxes(s, 0, 1)
+                    s = np.reshape(s, newshape=(len(s), -1))
+                    a = []
+                    for index in s:
+                        a.append(agent.online_net.act(index))
+                    s, r, done, trunk, info = env.step(a)
+                    reward_all += r
                     step += 1
                     if done or step >= n_time_step:
-                        env_e.reset()
+                        env.reset()
                         print("#" * 50)
-                        print("Finished Reward: ", count)
+                        print("Finished Reward: ", reward_all)
                         print("Step Number: ", step)
                         print("-" * 50)
-                        env_e.close()
                         break
     # 玩游戏
-    action_space = ActionSpace(A_number, A_dim)
-    env_last = Env(S_dim, A_dim, Request_number, Stop_number)
+    env_last = Env()
     s, info = env.reset()
     while True:
+        s = np.swapaxes(s, 0, 1)
+        s = np.reshape(s, newshape=(len(s), -1))
+        a = []
+        for index in s:
+            a.append(agent.online_net.act(index))
         a = agent.online_net.act(s)
-        a_index = action_space.dic[a]
-        a_one_hot = np.zeros(A_dim, dtype=np.int32)
-        for index in a_index:
-            a_one_hot[index] = 1
-        s, r, done, trunk, info = env_last.step(a_one_hot)  # trunk,info will not be used
+        s, r, done, trunk, info = env_last.step(a)  # trunk,info will not be used
         if done:
             break
     print("init network cache hit ratio %f" % (env_init.cache / env_init.total))
@@ -167,28 +164,29 @@ def train():
 
 def test():
     """Generate agents"""
-    action_space = ActionSpace(A_number, A_dim)
-    env = Env(S_dim, A_dim, Request_number, Stop_number)
+    env = Env()
 
     s, info = env.reset()
-
-    n_state = len(s)
-    n_action = action_space.n_action
-
+    s = np.swapaxes(s, 0, 1)
+    s = np.reshape(s, newshape=(len(s), -1))
+    n_state = s.shape[1]
+    n_action = env.action_space.actions_index_number
     agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train', model_path=model_path)
-
     reward_all = 0
 
     # 演示
+    s, info = env.reset()
     step = 0
     while True:
-        a = agent.online_net.act(s)
-        a_index = action_space.dic[a]
-        a_one_hot = np.zeros(A_dim, dtype=np.int32)
-        for index in a_index:
-            a_one_hot[index] = 1
-        s, r, done, trunk, info = env.step(a_one_hot)
-        reward_all += r
+        s = np.swapaxes(s, 0, 1)
+        s = np.reshape(s, newshape=(len(s), -1))
+        a = []
+        for index in s:
+            a.append(agent.online_net.act(index))
+        s, r, done, trunk, info = env.step(a)
+        reward_all=0
+        for i in range(len(r)):
+            reward_all += r[i]
         step += 1
         if done or step >= n_time_step:
             env.reset()

@@ -1,174 +1,163 @@
 import gym
-from Main.Env.ProbAndReward.probability import ProbabilityDensity
+from Main.Env.ProbAndReward.probability import ProbabilityDensity, ProbabilityMass
 import numpy as np
-from Main.Env.ProbAndReward.request import Request
 from Main.Env.param import *
+from itertools import combinations
+
+
+# 动作空间
+class ActionSpace:
+    def __init__(self, cache_cab, file_number):
+        """
+        :param cache_cab: 缓存能力
+        :param file_number: 文件数量
+        """
+        self.action_space = np.arange(file_number)  # 动作空间索引长度
+
+        self.action_index_dic = []  # 存储编号-枚举的动作
+
+        comb = combinations(self.action_space, cache_cab)
+        for i in comb:
+            self.action_index_dic.append(i)
+        np.random.shuffle(self.action_index_dic)
+
+        self.actions_index_number = len(self.action_index_dic)  # 动作空间的大小
 
 
 class Env(gym.Env):
-    def __init__(self, S_dim, a_dim, request_number, stop_number):
-        # self.observation_space = np.zeros(shape=(3, S_dim))
-        self.observation_space = np.zeros(shape=(3, S_dim))
-        self.action_space = np.arange(a_dim)
-        self.request = Request(range(S_dim), request_number)
-        self.request_number = request_number  # 每次生成的请求数量
-        self.cache = 0
-        self.total = 0
-        self.continue_hit = 0
-        self.time_out_file = 0
-        self.stop_number = stop_number  # 仿真step步数
-        self.request_time_out_dis = [[] for _ in range(S_dim)]  # 时延分布
+    def __init__(self):
+        # [0]不同节点的内容流行度，[1]不同节点上一次缓存的内容
+        self.observation_space = np.zeros(shape=(2, Node_number, A_dim))
+        # 生成的请求
+        self.request = np.zeros(shape=(Node_number, Request_number))
+        # 动作空间
+        self.action_space = ActionSpace(A_number, A_dim)
+        # 每次生成的请求数量
+        self.request_number = Request_number
+        # 仿真step步数
+        self.stop_number = Stop_number
+        # 计算每个节点的平均传输时间延迟
+        self.node_timeout = np.zeros(shape=(Node_number, 1))
+        # 传输时间分布参数
+        self.Lambda = 1
 
     def step(self, action):
-        reward_hit = 0
-        reward_time_out = 0
-        flag = True  # 用于判断连续命中
-        scale_hit = 1  # 连续命中奖励
-        scale_err = -1  # 连续不命中
-        for index in range(len(self.request.request)):
-            self.total += 1
-            if action[self.request.request[index]] == 1:
-                # 缓存命中
-                reward_hit += 1
-                self.cache += 1
-            else:
-                flag = False
-                # 缓存没命中
-                reward_hit += -1
-            if self.request.time_out[index] > self.request.time_out_max and not action[self.request.request[index]] == 1:
-                # 超时
-                print(action)
-                reward_time_out += -1
-                self.time_out_file += 1
-            else:
-                # 未超时
-                reward_time_out += 1
-        reward = w * reward_hit + (1 - w) * reward_time_out
+        """
+        action: [节点编号，缓存动作索引编号]
+        example: [34,12,35] if Node_number = 3
+        """
+        # 将动作转成具体的文件索引
+        cache_index = []
+        for node in action:
+            cache_index.append(self.action_space.action_index_dic[node])
+        print(cache_index)
+        # 计算缓存命中率
+        cache_hit = np.zeros(shape=(Node_number, 1))  # 缓存命中率
+        cache_total = np.zeros(shape=(Node_number, 1))  # 缓存请求数量
+        for i in range(Node_number):
+            for request in self.request[i]:
+                if request in cache_index[i]:
+                    cache_hit[i] += 1
+                cache_total[i] += 1
 
-        self.observation_space = np.array(self.observation_space).reshape(3, len(self.action_space))
-        # observation_space更新 [频率，时延均值, 上一时刻缓存内容] [3, S_dim]
-        frequency = np.zeros(shape=(len(self.observation_space[0])))
-        for i in range(len(self.observation_space[0])):
-            frequency[i] += self.request.request.count(i)
-        self.observation_space[0] = frequency  # 频率
+        # 计算奖励，缓存命中率越高，奖励越高
+        reward_node = np.zeros(shape=(Node_number, 1))  # 节点奖励
+        for i in range(Node_number):
+            reward_node[i] = -(cache_total[i] - cache_hit[i])
 
-        time_out = np.zeros(shape=(len(self.observation_space[1])))
-        for i in range(len(self.request.request)):
-            time_out[self.request.request[i]] += self.request.time_out[i]
-        for index in range(len(self.observation_space[1])):
-            if frequency[index] != 0:
-                time_out[index] = time_out[index] / frequency[index]
-        self.observation_space[1] = time_out  # 时延均值
-
-        self.observation_space[2] = action  # 上一时刻缓存内容
-
-        # request_time_out_dis更新 [状态index, 时延]  [S_dim, S_dim]
-        for i in range(len(self.request.request)):
-            self.request_time_out_dis[self.request.request[i]].append(self.request.time_out[i])  # 时延分布
+        # 计算传输时间延迟
+        # 将缓存索引转成one-hot编码
+        last_cache = self.observation_space[1]
+        now_cache = np.zeros(shape=(Node_number, A_dim))
+        for i in range(Node_number):
+            for j in range(A_dim):
+                if j in cache_index[i]:
+                    now_cache[i][j] = 1
+        # 计算每个节点的平均传输时间延迟(卫星拉取时延)
+        for i in range(Node_number):
+            for file_index in range(A_dim):
+                if last_cache[i][file_index] == 0 and now_cache[i][file_index] == 1:
+                    self.node_timeout[i] += self.FileTransferTime(file_index, self.Lambda)
+            self.node_timeout[i] /= A_dim
 
         # 生成新的请求
-        self.request.RequestCreate()
-        self.request.RequestTimeOut()
+        self.request, content_popularity = self.CreateRequest()
 
-        # 结束条件
-        # 平展状态空间
-        self.observation_space = np.array(self.observation_space).reshape(-1)
-        if self.total >= self.stop_number:
-            return self.observation_space, reward, True, False, False
-        return self.observation_space, reward, False, False, False
+        # 更新状态
+        self.observation_space[0] = content_popularity
+        self.observation_space[1] = now_cache
+
+        # 判断是否结束
+        self.stop_number -= Request_number
+        done = self.stop_number <= 0
+
+        return self.observation_space, reward_node, done, \
+            {"cache_hit": cache_hit, "cache_total": cache_total,
+             "node_timeout": self.node_timeout}, False
 
     def reset(self):
-        self.observation_space = np.array(self.observation_space).reshape(3, len(self.action_space))
-        # observation_space更新 [频率，时延均值, 上一时刻缓存内容] [3, S_dim]
-        frequency = np.zeros(shape=(len(self.observation_space[0])))
-        for i in range(len(self.observation_space[0])):
-            frequency[i] += self.request.request.count(i)
-        self.observation_space[0] = frequency  # 频率
+        # 初始化状态
+        request, content_popularity = self.CreateRequest()
+        self.observation_space[0] = content_popularity
+        self.observation_space[1] = np.zeros(shape=(Node_number, A_dim))
+        self.request = request
 
-        time_out = np.zeros(shape=(len(self.observation_space[1])))
-        for i in range(len(self.request.request)):
-            time_out[self.request.request[i]] += self.request.time_out[i]
-        for index in range(len(self.observation_space[1])):
-            if frequency[index] != 0:
-                time_out[index] = time_out[index] / frequency[index]
-        self.observation_space[1] = time_out  # 时延均值
+        # 初始化仿真步数
+        self.stop_number = Stop_number
 
-        cache_index = np.zeros(shape=(len(self.observation_space[2])))
-        self.observation_space[2] = cache_index  # 上一时刻缓存内容
+        # 初始化传输时间延迟
+        self.node_timeout = np.zeros(shape=(Node_number, 1))
+        return self.observation_space, {}
 
-        # request_time_out_dis更新 [状态index, 时延]  [S_dim, S_dim]
-        for i in range(len(self.request.request)):
-            self.request_time_out_dis[self.request.request[i]].append(self.request.time_out[i])  # 时延分布
+    @staticmethod
+    def CreateRequest():
+        """
+        生成请求
+        :return: 请求，内容流行度
+        example: if node number is 3
+        request = [
+        [1,2,3,4,5,6,7,8,9,10],
+        [1,2,3,4,5,6,7,8,9,10],
+        [1,2,3,4,5,6,7,8,9,10],
+        ]
+        """
+        # 不同节点的内容流行度分布生成
+        distribution = ProbabilityDensity.Zipf(np.arange(A_dim), Zipf_alpha, A_dim)
+        distribution = distribution / sum(distribution)
+        # 打乱顺序，生成节点的请求
+        request = np.zeros(shape=(Node_number, Request_number))  # 请求
+        content_popularity = np.zeros(shape=(Node_number, A_dim))  # 内容流行度
+        for i in range(Node_number):
+            # 更改distribution的顺序，模拟节点的内容流行度分布不同
+            # func(distribution)
+            content_popularity[i] = distribution
+            request[i] = np.random.choice(np.arange(A_dim), Request_number, p=distribution)
+        return request, content_popularity
 
-        self.cache = 0
-        self.total = 0
-
-        # 生成新的请求
-        self.request.RequestCreate()
-        self.request.RequestTimeOut()
-
-        # 平展状态空间
-        self.observation_space = np.array(self.observation_space).reshape(-1)
-        return self.observation_space, False
+    @staticmethod
+    def FileTransferTime(file_index, Lambda):
+        """
+        计算每个节点的平均传输时间延迟
+        :param file_index: 文件索引
+        :param Lambda: 传输时间分布参数
+        :return: 传输时间延迟
+        """
+        dic = {
+            i: ProbabilityMass.Poisson(i, Lambda) for i in range(A_dim)
+        }
+        return dic[file_index]
 
 
 if __name__ == "__main__":
-    s_dim = 10
-    a_dim = 10
-    request_number = 200
-    stop_number = 500
-    env = Env(s_dim, a_dim, request_number, stop_number)
-    frequency = np.zeros(shape=s_dim)
-    time_out_mean = np.zeros(shape=s_dim)
-    dic = {i: 0. for i in range(s_dim)}
-    time_out_dis = [[] for _ in range(s_dim)]
-    step = 0
-    # 初始化
-    observation_space, _ = env.reset()
-    observation_space = np.array(observation_space).reshape(3, s_dim)
-    for i in range(s_dim):
-        frequency[i] += observation_space[0][i]
-        time_out_mean[i] += observation_space[1][i]
-        if observation_space[0][i] != 0:
-            dic[i] += 1
-    while True:
-        # observation_space [频率，时延均值, 上一时刻缓存状态] [3, S_dim]
-        L = np.zeros(shape=len(env.request_time_out_dis), dtype=int).tolist()
-        observation_space, _, done, _, _ = env.step(L)
-        observation_space = np.array(observation_space).reshape(3, s_dim)
-        request_error_dis = env.request_time_out_dis
-        for i in range(s_dim):
-            frequency[i] += observation_space[0][i]
-            time_out_mean[i] += observation_space[1][i]
-            if observation_space[0][i] != 0:
-                dic[i] += 1
-            time_out_dis[i] += request_error_dis[i]
-        if done:
-            break
-    for i in range(s_dim):
-        if dic[i] != 0:
-            time_out_mean[i] = time_out_mean[i] / dic[i]
-    # 画图
-    import matplotlib.pyplot as plt
+    env = Env()
+    obs, _ = env.reset()
 
-    plt.figure(figsize=(10, s_dim * 3), dpi=200)
-    plt.subplots_adjust(hspace=0.5)
-    for i in range(s_dim):
-        plt.subplot(s_dim + 1, 1, i + 1)
-        plt.plot(range(len(time_out_dis[i])), time_out_dis[i], '-', color='r')
-        plt.ylabel('time out')
-        plt.xlabel('step')
-        plt.title("number %d file's time out distribution" % i)
-        # 理论均值线
-        plt.axhline(y=env.request.time_out_stander[i], color="b", linestyle="-")
-        plt.text(0, env.request.time_out_stander[i], 'stander')
-        # 实际均值线
-        plt.axhline(y=time_out_mean[i], color="g", linestyle="-")
-        plt.text(0, time_out_mean[i], 'mean')
-    plt.subplot(s_dim + 1, 1, s_dim + 1)
-    plt.scatter(range(len(frequency)), frequency, marker='o', color='b')
-    plt.xticks(range(len(frequency)))
-    plt.ylabel('frequency')
-    plt.xlabel('file')
-    plt.title("frequency")
-    plt.show()
+    action = [i + 2 for i in range(Node_number)]
+    for a in action:
+        print("Node ", a, " cache ", env.action_space.action_index_dic[a])
+
+    obs, reward, done, info, _ = env.step(action)
+    print("action size", np.array(action).shape)
+    print("state size ", np.array(obs).shape)
+    print("reward ", reward)
+    print("done ", done)

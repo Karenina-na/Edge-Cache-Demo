@@ -42,14 +42,17 @@ class Agent(nn.Module):
         self.GAMMA = GAMMA
         # policy network
         self.pi1 = nn.Linear(s_dim, 128)
-        self.pi2 = nn.Linear(128, 128)
-        self.pi3 = nn.Linear(128, a_dim)
+        self.pi2 = nn.Linear(128, 256)
+        self.pi3 = nn.Linear(256, 128)
+        self.pi4 = nn.Linear(128, a_dim)
         # value network
         self.v1 = nn.Linear(s_dim, 128)
-        self.v2 = nn.Linear(128, 128)
-        self.v3 = nn.Linear(128, 1)
+        self.v2 = nn.Linear(128, 256)
+        self.v3 = nn.Linear(256, 256)
+        self.v4 = nn.Linear(256, 128)
+        self.v5 = nn.Linear(128, 1)
         # init
-        set_init([self.pi1, self.pi2, self.pi3, self.v1, self.v2, self.v3])
+        set_init([self.pi1, self.pi2, self.pi3, self.pi4, self.v1, self.v2, self.v3, self.v4, self.v5])
         self.distribution = torch.distributions.Categorical
 
         self.model_path = model_path
@@ -70,10 +73,13 @@ class Agent(nn.Module):
         """
         pi1 = torch.tanh(self.pi1(x))
         pi2 = torch.tanh(self.pi2(pi1))
-        logits = self.pi3(pi2)
+        pi3 = torch.tanh(self.pi3(pi2))
+        logits = self.pi4(pi3)
         v1 = torch.tanh(self.v1(x))
         v2 = torch.tanh(self.v2(v1))
-        values = self.v3(v2)
+        v3 = torch.tanh(self.v3(v2))
+        v4 = torch.tanh(self.v4(v3))
+        values = self.v5(v4)
         return logits, values
 
     def choose_action(self, state: torch.Tensor):
@@ -142,20 +148,6 @@ class Agent(nn.Module):
             print("no model to save")
 
 
-class ActionSpace:
-    def __init__(self, n_action, action_space, ):
-        self.action_space = np.arange(action_space)  # 动作空间索引长度
-
-        self.dic = []  # 存储编号-枚举的动作
-
-        comb = combinations(self.action_space, n_action)
-        for i in comb:
-            self.dic.append(i)
-        np.random.shuffle(self.dic)
-
-        self.n_action = len(self.dic)  # 动作空间的大小
-
-
 if __name__ == "__main__":
     batch_size = 5
     s = torch.rand([batch_size, 5], dtype=torch.float32)
@@ -166,3 +158,4 @@ if __name__ == "__main__":
     print("reward shape:", r.shape)
     agent = Agent(s_dim=5, a_dim=10, GAMMA=0.9)
     print(agent(s))
+    print(agent.choose_action(s))

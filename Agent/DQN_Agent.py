@@ -137,3 +137,8 @@ class Agent:
             os.remove(self.model_path + "/dqn.pth")
         # 保存模型
         torch.save(self.online_net.state_dict(), self.model_path + "/dqn.pth")
+
+
+if __name__ == "__main__":
+    agent = Agent(idx=0, n_input=30, n_output=100, mode='train', model_path=None)
+    print(agent.online_net.act(np.random.randn(30)))
