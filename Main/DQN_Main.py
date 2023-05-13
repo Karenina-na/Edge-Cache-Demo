@@ -16,7 +16,9 @@ def train():
     n_state = s.shape[1]
     n_action = env.action_space.actions_index_number
     agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train', model_path=model_path)
-
+    cache_hit_init = [0, 0, 0]
+    cache_total_init = [0, 0, 0]
+    node_time_out_init = [0, 0, 0]
     # 玩游戏
     env_init = Env()
     s, info = env.reset()
@@ -26,7 +28,10 @@ def train():
         a = []
         for index in s:
             a.append(agent.online_net.act(index))
-        s, r, done, trunk, info = env_init.step(a)  # trunk,info will not be used
+        s, r, done, info, _ = env_init.step(a)  # trunk,info will not be used
+        cache_hit_init += np.reshape(info["cache_hit"], newshape=(Node_number,))
+        cache_total_init += np.reshape(info["cache_total"], newshape=(Node_number,))
+        node_time_out_init += np.reshape(info["node_timeout"], newshape=(Node_number,))
         if done:
             break
 
@@ -145,20 +150,33 @@ def train():
     # 玩游戏
     env_last = Env()
     s, info = env.reset()
+    cache_hit = [0, 0, 0]
+    cache_total = [0, 0, 0]
+    node_time_out = [0, 0, 0]
     while True:
         s = np.swapaxes(s, 0, 1)
         s = np.reshape(s, newshape=(len(s), -1))
         a = []
         for index in s:
             a.append(agent.online_net.act(index))
-        a = agent.online_net.act(s)
-        s, r, done, trunk, info = env_last.step(a)  # trunk,info will not be used
+        s, r, done, info, _ = env_last.step(a)  # trunk,info will not be used
+        cache_hit += np.reshape(info["cache_hit"], newshape=(Node_number,))
+        cache_total += np.reshape(info["cache_total"], newshape=(Node_number,))
+        node_time_out += np.reshape(info["node_timeout"], newshape=(Node_number,))
         if done:
             break
-    print("init network cache hit ratio %f" % (env_init.cache / env_init.total))
-    print("init network cache time out %f" % (env_init.time_out_file / env_init.total))
-    print("last network cache hit ratio %f" % (env_last.cache / env_last.total))
-    print("last network cache time out %f" % (env_last.time_out_file / env_last.total))
+
+    for i in range(Node_number):
+        print("node %d cache hit ratio %f init" % (i, cache_hit_init[i] / cache_total_init[i]))
+    print()
+    for i in range(Node_number):
+        print("node %d cache time out %f init" % (i, node_time_out_init[i] / cache_total_init[i]))
+    print('-'*100)
+    for i in range(Node_number):
+        print("node %d cache hit ratio %f" % (i, cache_hit[i] / cache_total[i]))
+    print()
+    for i in range(Node_number):
+        print("node %d cache time out %f" % (i, node_time_out[i] / cache_total[i]))
     # agent.save_model()
 
 
@@ -202,13 +220,13 @@ EPSILON_START = 1.0
 # 探索率结束
 EPSILON_END = 0.02
 # 探索率衰减率
-EPSILON_DECAY = 0.995
+EPSILON_DECAY = 0.0001
 # Target Network 更新频率
 TARGET_UPDATE_FREQUENCY = 10
 # 平均reward到达多少演示
 DEMO_REWARD = 100
 # 训练次数
-n_episode = 1000
+n_episode = 100
 # 每次训练的最大步数
 n_time_step = 400
 # 游戏

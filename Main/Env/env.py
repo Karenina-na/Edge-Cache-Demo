@@ -50,7 +50,7 @@ class Env(gym.Env):
         cache_index = []
         for node in action:
             cache_index.append(self.action_space.action_index_dic[node])
-        print(cache_index)
+
         # 计算缓存命中率
         cache_hit = np.zeros(shape=(Node_number, 1))  # 缓存命中率
         cache_total = np.zeros(shape=(Node_number, 1))  # 缓存请求数量

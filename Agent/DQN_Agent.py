@@ -12,7 +12,7 @@ class ReplayMemory:
         self.n_s = n_s
         self.n_a = n_a
 
-        self.MEMORY_SIZE = 10000
+        self.MEMORY_SIZE = 30000
         self.BATCH_SIZE = 64
         self.all_s = np.empty(shape=(self.MEMORY_SIZE, self.n_s), dtype=np.float64)
         self.all_a = np.random.randint(low=0, high=self.n_a, size=self.MEMORY_SIZE, dtype=np.uint8)
