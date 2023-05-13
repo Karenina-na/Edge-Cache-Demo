@@ -31,9 +31,9 @@ class Request:
             self.time_out_stander.append(time_mu)
 
     def RequestCreate(self):
-        distribution = ProbabilityDensity.Zipf(np.arange(len(self.state_space)),
-                                               self.a, len(self.state_space))
-
+        # distribution = ProbabilityDensity.Zipf(np.arange(len(self.state_space)),
+        #                                        self.a, len(self.state_space))
+        distribution = ProbabilityDensity.Normal(np.arange(len(self.state_space)), 7, 4)
         distribution = distribution / sum(distribution)
         # 按照概率分布生成n个请求
         requests = []
@@ -68,7 +68,7 @@ class Request:
 
 
 if __name__ == '__main__':
-    states = np.arange(25)
+    states = np.arange(10)
     request_number = 1000
     request = Request(states, request_number)
     request.RequestCreate()

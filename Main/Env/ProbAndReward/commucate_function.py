@@ -82,23 +82,23 @@ def satellite_communicate():
     # Csa = Bsa * log2(1 + (Psa * path_loss_model(d, Gt, Gr, lamda)) / sigma * exp(2a))
     Csa = cfg_sa["Bsa"] * \
           math.log2(1 + (cfg_sa["Psa"] * path_loss_model(cfg_sa["d"], cfg_sa["Gt"], cfg_sa["Gr"], cfg_sa["lamda"])
-                         ) / (cfg_sa["sigma"]*math.exp(2*cfg_sa["a"])))
+                         ) / (cfg_sa["sigma"] * math.exp(2 * cfg_sa["a"])))
     return Csa
 
 
 file_weight = {
-    i: ProbabilityDensity.Normal(i, A_dim/2, 5) for i in range(0, A_dim)
+    i: ProbabilityDensity.Normal(i, A_dim / 2, 5) for i in range(0, A_dim)
 }
 
 
 # 计算传输时间
 def Calculate_time(index):
-    if communicate_type=="ground":
+    if communicate_type == "ground":
         rate = ground_communicate()  # 地面
-    elif communicate_type=="plane":
-        rate = plane_communicate()    # 无人机
+    elif communicate_type == "plane":
+        rate = plane_communicate()  # 无人机
     else:
-        rate = satellite_communicate()    # 卫星
+        rate = satellite_communicate()  # 卫星
     file_scale = [1000000, 5000000]  # 文件大小范围
     file = (file_scale[1] - file_scale[0]) * file_weight[index] + file_scale[0]
     time = file / rate
@@ -110,8 +110,8 @@ if __name__ == "__main__":
     # print(str(plane_communicate()/1000000) + " Mbps")
     # print(str(satellite_communicate()/1000000) + " Mbps")
     time = []
-    for i in range(25):
+    for i in range(10):
         print(Calculate_time(i))
         time.append(Calculate_time(i))
-    plt.scatter(range(25), time)
+    plt.scatter(range(10), time)
     plt.show()

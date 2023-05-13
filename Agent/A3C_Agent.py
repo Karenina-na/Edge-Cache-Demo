@@ -33,19 +33,23 @@ class SharedAdam(torch.optim.Adam):
 
 
 class Agent(nn.Module):
-    def __init__(self, s_dim: int, a_dim: int, GAMMA: float = 0.9, model_path=None):
+    def __init__(self, s_dim: int, a_dim: int, GAMMA: float = 0.9, model_path=None, model_type='train'):
         super(Agent, self).__init__()
+        self.type = model_type
+
         self.s_dim = s_dim
         self.a_dim = a_dim
         self.GAMMA = GAMMA
         # policy network
         self.pi1 = nn.Linear(s_dim, 128)
-        self.pi2 = nn.Linear(128, a_dim)
+        self.pi2 = nn.Linear(128, 128)
+        self.pi3 = nn.Linear(128, a_dim)
         # value network
         self.v1 = nn.Linear(s_dim, 128)
-        self.v2 = nn.Linear(128, 1)
+        self.v2 = nn.Linear(128, 128)
+        self.v3 = nn.Linear(128, 1)
         # init
-        set_init([self.pi1, self.pi2, self.v1, self.v2])
+        set_init([self.pi1, self.pi2, self.pi3, self.v1, self.v2, self.v3])
         self.distribution = torch.distributions.Categorical
 
         self.model_path = model_path
@@ -65,9 +69,11 @@ class Agent(nn.Module):
         :return:    动作分布 [batch_size, action_dim], 价值函数 [batch_size, 1]
         """
         pi1 = torch.tanh(self.pi1(x))
-        logits = self.pi2(pi1)
+        pi2 = torch.tanh(self.pi2(pi1))
+        logits = self.pi3(pi2)
         v1 = torch.tanh(self.v1(x))
-        values = self.v2(v1)
+        v2 = torch.tanh(self.v2(v1))
+        values = self.v3(v2)
         return logits, values
 
     def choose_action(self, state: torch.Tensor):
@@ -76,11 +82,18 @@ class Agent(nn.Module):
         :param state:   状态 [state_dim]
         :return:    动作 [action_dim]
         """
-        self.eval()
-        logits, _ = self.forward(state)
-        prob = F.softmax(logits, dim=1).data
-        m = self.distribution(prob)
-        return m.sample().numpy()[0]
+        if self.type == 'train':
+            self.eval()
+            logits, _ = self.forward(state)
+            prob = F.softmax(logits, dim=1).data
+            m = self.distribution(prob)
+            return m.sample().numpy()[0]
+        else:
+            self.eval()
+            logits, _ = self.forward(state)
+            prob = F.softmax(logits, dim=1).data
+            _, pred = torch.max(prob, 1)
+            return pred.item()
 
     def loss_func(self, state: torch.Tensor, actions: torch.Tensor, target: torch.Tensor):
         """
@@ -94,8 +107,16 @@ class Agent(nn.Module):
         # 计算当前状态的价值
         logits, values = self.forward(state)
 
-        # 计算奖励    R = r + GAMMA * target
-        returns = target
+        # 计算累计奖励    R = r + GAMMA * r + GAMMA^2 * r + ...
+        returns = []
+        for i in range(len(target)):
+            Gt = 0  # 未来奖励
+            pw = 0  # 未来奖励衰减权重
+            for r in target[i:]:
+                Gt = Gt + self.GAMMA ** pw * r
+                pw = pw + 1
+            returns.append(Gt)
+        returns = torch.tensor(returns, dtype=torch.float32).view(-1, 1)
 
         # 计算 advantage
         advantages = []
@@ -123,13 +144,14 @@ class Agent(nn.Module):
 
 class ActionSpace:
     def __init__(self, n_action, action_space, ):
-        self.action_space = np.arange(action_space)  # 动作空间
+        self.action_space = np.arange(action_space)  # 动作空间索引长度
 
         self.dic = []  # 存储编号-枚举的动作
 
         comb = combinations(self.action_space, n_action)
         for i in comb:
             self.dic.append(i)
+        np.random.shuffle(self.dic)
 
         self.n_action = len(self.dic)  # 动作空间的大小
 

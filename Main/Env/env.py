@@ -14,6 +14,7 @@ class Env(gym.Env):
         self.request_number = request_number  # 每次生成的请求数量
         self.cache = 0
         self.total = 0
+        self.continue_hit = 0
         self.time_out_file = 0
         self.stop_number = stop_number  # 仿真step步数
         self.request_time_out_dis = [[] for _ in range(S_dim)]  # 时延分布
@@ -21,6 +22,9 @@ class Env(gym.Env):
     def step(self, action):
         reward_hit = 0
         reward_time_out = 0
+        flag = True  # 用于判断连续命中
+        scale_hit = 1  # 连续命中奖励
+        scale_err = -1  # 连续不命中
         for index in range(len(self.request.request)):
             self.total += 1
             if action[self.request.request[index]] == 1:
@@ -28,18 +32,20 @@ class Env(gym.Env):
                 reward_hit += 1
                 self.cache += 1
             else:
+                flag = False
                 # 缓存没命中
                 reward_hit += -1
-                if self.request.time_out[index] > self.request.time_out_max:
-                    # 超时
-                    reward_time_out += -1
-                    self.time_out_file += 1
-                else:
-                    # 未超时
-                    reward_time_out += 1
+            if self.request.time_out[index] > self.request.time_out_max and not action[self.request.request[index]] == 1:
+                # 超时
+                print(action)
+                reward_time_out += -1
+                self.time_out_file += 1
+            else:
+                # 未超时
+                reward_time_out += 1
         reward = w * reward_hit + (1 - w) * reward_time_out
 
-        self.observation_space = np.array(self.observation_space).reshape(3, S_dim)
+        self.observation_space = np.array(self.observation_space).reshape(3, len(self.action_space))
         # observation_space更新 [频率，时延均值, 上一时刻缓存内容] [3, S_dim]
         frequency = np.zeros(shape=(len(self.observation_space[0])))
         for i in range(len(self.observation_space[0])):
@@ -54,10 +60,7 @@ class Env(gym.Env):
                 time_out[index] = time_out[index] / frequency[index]
         self.observation_space[1] = time_out  # 时延均值
 
-        cache_index = np.zeros(shape=(len(self.observation_space[2])))
-        for index in action:
-            cache_index[index] = 1
-        self.observation_space[2] = cache_index  # 上一时刻缓存内容
+        self.observation_space[2] = action  # 上一时刻缓存内容
 
         # request_time_out_dis更新 [状态index, 时延]  [S_dim, S_dim]
         for i in range(len(self.request.request)):
@@ -75,7 +78,7 @@ class Env(gym.Env):
         return self.observation_space, reward, False, False, False
 
     def reset(self):
-        self.observation_space = np.array(self.observation_space).reshape(3, S_dim)
+        self.observation_space = np.array(self.observation_space).reshape(3, len(self.action_space))
         # observation_space更新 [频率，时延均值, 上一时刻缓存内容] [3, S_dim]
         frequency = np.zeros(shape=(len(self.observation_space[0])))
         for i in range(len(self.observation_space[0])):
@@ -109,7 +112,6 @@ class Env(gym.Env):
         return self.observation_space, False
 
 
-
 if __name__ == "__main__":
     s_dim = 10
     a_dim = 10
@@ -123,6 +125,7 @@ if __name__ == "__main__":
     step = 0
     # 初始化
     observation_space, _ = env.reset()
+    observation_space = np.array(observation_space).reshape(3, s_dim)
     for i in range(s_dim):
         frequency[i] += observation_space[0][i]
         time_out_mean[i] += observation_space[1][i]
@@ -132,6 +135,7 @@ if __name__ == "__main__":
         # observation_space [频率，时延均值, 上一时刻缓存状态] [3, S_dim]
         L = np.zeros(shape=len(env.request_time_out_dis), dtype=int).tolist()
         observation_space, _, done, _, _ = env.step(L)
+        observation_space = np.array(observation_space).reshape(3, s_dim)
         request_error_dis = env.request_time_out_dis
         for i in range(s_dim):
             frequency[i] += observation_space[0][i]
