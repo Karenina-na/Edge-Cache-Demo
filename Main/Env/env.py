@@ -40,6 +40,8 @@ class Env(gym.Env):
         self.node_timeout = np.zeros(shape=(Node_number, 1))
         # 传输时间分布参数
         self.Lambda = 1
+        # 生成请求次数
+        self.request_time = 0
 
     def step(self, action):
         """
@@ -104,13 +106,13 @@ class Env(gym.Env):
 
         # 初始化仿真步数
         self.stop_number = Stop_number
+        self.request_time = 0
 
         # 初始化传输时间延迟
         self.node_timeout = np.zeros(shape=(Node_number, 1))
         return self.observation_space, {}
 
-    @staticmethod
-    def CreateRequest():
+    def CreateRequest(self):
         """
         生成请求
         :return: 请求，内容流行度
@@ -121,15 +123,19 @@ class Env(gym.Env):
         [1,2,3,4,5,6,7,8,9,10],
         ]
         """
+        self.request_time += 1
         # 不同节点的内容流行度分布生成
         distribution = ProbabilityDensity.Zipf(np.arange(A_dim), Zipf_alpha, A_dim)
-        distribution = distribution / sum(distribution)
         # 打乱顺序，生成节点的请求
         request = np.zeros(shape=(Node_number, Request_number))  # 请求
         content_popularity = np.zeros(shape=(Node_number, A_dim))  # 内容流行度
         for i in range(Node_number):
             # 更改distribution的顺序，模拟节点的内容流行度分布不同
             # func(distribution)
+            if self.request_time == N:
+                # 循环右移一位
+                distribution = np.concatenate((distribution[-1:], distribution[:-1]))
+            distribution = distribution / sum(distribution)
             content_popularity[i] = distribution
             request[i] = np.random.choice(np.arange(A_dim), Request_number, p=distribution)
         return request, content_popularity

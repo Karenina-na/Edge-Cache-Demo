@@ -125,11 +125,11 @@ def train():
                 count = 0
                 env_e = Env()
 
-                s, info = env.reset()
+                s, info = env_e.reset()
                 s = np.reshape(s, newshape=(1, -1))
                 n_action = action_space.action_space.actions_index_number
                 # 演示
-                s, info = env.reset()
+                s, info = env_e.reset()
                 step = 0
                 while True:
                     s = np.swapaxes(s, 0, 1)
@@ -137,7 +137,7 @@ def train():
                     a = []
                     for index in s:
                         a.append(agent.online_net.act(index))
-                    s, r, done, trunk, info = env.step(a)
+                    s, r, done, trunk, info = env_e.step(a)
                     reward_all += r
                     step += 1
                     if done or step >= n_time_step:

@@ -69,9 +69,16 @@ class DQN(nn.Module):
         in_features = n_input
 
         self.net = nn.Sequential(
-            nn.Linear(in_features, 64),
+            nn.Linear(in_features, 128),
             nn.Tanh(),
-            nn.Linear(64, n_output))
+            nn.Linear(128, 256),
+            nn.Tanh(),
+            nn.Linear(256, 256),
+            nn.Tanh(),
+            nn.Linear(256, 128),
+            nn.Tanh(),
+            nn.Linear(128, n_output)
+        )
 
     def forward(self, x):
         return self.net(x)
