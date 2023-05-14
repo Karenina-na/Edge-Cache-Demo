@@ -6,6 +6,8 @@ from Agent.DQN_Agent import Agent
 from Main.Env.env import Env
 from Main.Env.param import *
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 def train():
     env = Env()
@@ -15,7 +17,8 @@ def train():
     s = np.reshape(s, newshape=(len(s), -1))
     n_state = s.shape[1]
     n_action = env.action_space.actions_index_number
-    agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train', model_path=model_path)
+    agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train', model_path=model_path, device=device)
+
     cache_hit_init = [0, 0, 0]
     cache_total_init = [0, 0, 0]
     node_time_out_init = [0, 0, 0]
@@ -26,6 +29,7 @@ def train():
         s = np.swapaxes(s, 0, 1)
         s = np.reshape(s, newshape=(len(s), -1))
         a = []
+        s = torch.tensor(s, dtype=torch.float32, device=device)
         for index in s:
             a.append(agent.online_net.act(index))
         s, r, done, info, _ = env_init.step(a)  # trunk,info will not be used
@@ -48,7 +52,7 @@ def train():
         episode_reward = 0
 
         for step_i in range(n_time_step):
-
+            s = torch.tensor(s, dtype=torch.float32, device=device)
             # 选择随机动作的概率
             epsilon = np.interp(episode_i * n_time_step + step_i, [0, EPSILON_DECAY],
                                 [EPSILON_START, EPSILON_END])  # interpolation
@@ -63,6 +67,7 @@ def train():
                 a = []
                 for index in s:
                     a.append(agent.online_net.act(index))
+            s = s.cpu()
 
             # 执行动作
             s_, r, done, trunk, info = env.step(a)  # trunk,info will not be used
@@ -89,6 +94,11 @@ def train():
 
             # 抽取经验
             batch_s, batch_a, batch_r, batch_done, batch_s_ = agent.memo.sample()  # update batch-size amounts of Q
+            batch_s = batch_s.to(device)
+            batch_a = batch_a.to(device)
+            batch_r = batch_r.to(device)
+            batch_done = batch_done.to(device)
+            batch_s_ = batch_s_.to(device)
 
             # 计算 target Q(t+1) target网络
             target_q_values = agent.target_net(batch_s_)
@@ -120,33 +130,6 @@ def train():
             print("Episode: {}".format(episode_i))
             print("Avg Reward: {}".format(np.mean(REWARD_BUFFER[:episode_i])))
 
-            # 如果奖励到达一定值，演示
-            if episode_i != 0 and np.mean(REWARD_BUFFER[:episode_i]) >= DEMO_REWARD:
-                count = 0
-                env_e = Env()
-
-                s, info = env_e.reset()
-                s = np.reshape(s, newshape=(1, -1))
-                n_action = action_space.action_space.actions_index_number
-                # 演示
-                s, info = env_e.reset()
-                step = 0
-                while True:
-                    s = np.swapaxes(s, 0, 1)
-                    s = np.reshape(s, newshape=(len(s), -1))
-                    a = []
-                    for index in s:
-                        a.append(agent.online_net.act(index))
-                    s, r, done, trunk, info = env_e.step(a)
-                    reward_all += r
-                    step += 1
-                    if done or step >= n_time_step:
-                        env.reset()
-                        print("#" * 50)
-                        print("Finished Reward: ", reward_all)
-                        print("Step Number: ", step)
-                        print("-" * 50)
-                        break
     # 玩游戏
     env_last = Env()
     s, info = env.reset()
@@ -157,6 +140,7 @@ def train():
         s = np.swapaxes(s, 0, 1)
         s = np.reshape(s, newshape=(len(s), -1))
         a = []
+        s = torch.tensor(s, dtype=torch.float32, device=device)
         for index in s:
             a.append(agent.online_net.act(index))
         s, r, done, info, _ = env_last.step(a)  # trunk,info will not be used
@@ -171,7 +155,7 @@ def train():
     print()
     for i in range(Node_number):
         print("node %d cache time out %f init" % (i, node_time_out_init[i] / cache_total_init[i]))
-    print('-'*100)
+    print('-' * 100)
     for i in range(Node_number):
         print("node %d cache hit ratio %f" % (i, cache_hit[i] / cache_total[i]))
     print()
@@ -202,7 +186,7 @@ def test():
         for index in s:
             a.append(agent.online_net.act(index))
         s, r, done, trunk, info = env.step(a)
-        reward_all=0
+        reward_all = 0
         for i in range(len(r)):
             reward_all += r[i]
         step += 1
@@ -226,9 +210,9 @@ TARGET_UPDATE_FREQUENCY = 10
 # 平均reward到达多少演示
 DEMO_REWARD = 100
 # 训练次数
-n_episode = 100
+n_episode = 500
 # 每次训练的最大步数
-n_time_step = 400
+n_time_step = 500
 # 游戏
 # model
 model_path = None

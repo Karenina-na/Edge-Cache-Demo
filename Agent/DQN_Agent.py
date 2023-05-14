@@ -99,7 +99,7 @@ class DQN(nn.Module):
 
 # DQN agent
 class Agent:
-    def __init__(self, idx, n_input, n_output, mode="train", model_path=None):
+    def __init__(self, idx, n_input, n_output, mode="train", model_path=None, device="cpu"):
         self.idx = idx
         self.mode = mode
         self.n_input = n_input
@@ -117,8 +117,8 @@ class Agent:
 
         # 创建神经网络
         if self.mode == "train":
-            self.online_net = DQN(self.n_input, self.n_output)
-            self.target_net = DQN(self.n_input, self.n_output)
+            self.online_net = DQN(self.n_input, self.n_output).to(device)
+            self.target_net = DQN(self.n_input, self.n_output).to(device)
 
             if model_path is not None:
                 if os.path.exists(model_path + "/dqn.pth"):
