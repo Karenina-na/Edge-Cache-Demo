@@ -54,8 +54,7 @@ def train():
         for step_i in range(n_time_step):
             s = torch.tensor(s, dtype=torch.float32, device=device)
             # 选择随机动作的概率
-            epsilon = np.interp(episode_i * n_time_step + step_i, [0, EPSILON_DECAY],
-                                [EPSILON_START, EPSILON_END])  # interpolation
+            epsilon = max(EPSILON_END, EPSILON_START - (EPSILON_START - EPSILON_END) * (step_i / EPSILON_DECAY))
 
             # 概率epsilon随机选择动作，概率1-epsilon选择最优动作 online网络
             random_sample = random.random()
@@ -71,7 +70,6 @@ def train():
 
             # 执行动作
             s_, r, done, trunk, info = env.step(a)  # trunk,info will not be used
-
             # 记录经验
             s_ = np.swapaxes(s_, 0, 1)
             s_ = np.reshape(s_, newshape=(len(s), -1))
@@ -84,10 +82,8 @@ def train():
             # 记录奖励
             for i in range(len(r)):
                 episode_reward += r[i]
-
             if done:
                 s, info = env.reset()
-
                 # 记录奖励
                 REWARD_BUFFER[episode_i] = episode_reward
                 break

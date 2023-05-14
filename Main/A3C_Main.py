@@ -129,9 +129,7 @@ def push_and_pull(optimizer: torch.optim, local_net: Agent, global_net: Agent, d
     # 反向传播，和全局网络同步
     loss = actor_loss + critic_loss
     optimizer.zero_grad()
-    # loss.backward()
-    critic_loss.backward(retain_graph=True)  # 保留计算图
-    actor_loss.backward()
+    loss.backward()
     for lp, gp in zip(local_net.parameters(), global_net.parameters()):
         gp._grad = lp.grad * TAU
     optimizer.step()
