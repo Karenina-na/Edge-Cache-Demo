@@ -141,7 +141,16 @@ class Env(gym.Env):
                 self.distribution[i] = np.concatenate((self.distribution[i][-1:], self.distribution[i][:-1]))
                 self.distribution[i] = self.distribution[i] / sum(self.distribution[i])
             content_popularity[i] = self.distribution[i]
-            request[i] = np.random.choice(np.arange(A_dim), Request_number, p=self.distribution[i])
+            # request[i] = np.random.choice(np.arange(A_dim), Request_number, p=self.distribution[i])
+            # 按照概率分布产生固定数量的请求
+            req = []
+            for j in range(A_dim):
+                for k in range(int(Request_number * self.distribution[i][j])):
+                    req.append(j)
+            # 维度对齐
+            while len(req) < Request_number:
+                req.append(-1)
+            request[i] = req
         return request, content_popularity
 
     @staticmethod

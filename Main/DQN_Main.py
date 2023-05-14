@@ -200,7 +200,7 @@ EPSILON_START = 1.0
 # 探索率结束
 EPSILON_END = 0.02
 # 探索率衰减率
-EPSILON_DECAY = 0.0001
+EPSILON_DECAY = 0.9
 # Target Network 更新频率
 TARGET_UPDATE_FREQUENCY = 10
 # 平均reward到达多少演示
