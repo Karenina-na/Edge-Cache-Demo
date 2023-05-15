@@ -3,8 +3,8 @@
 A_dim = 10  # 缓存内容索引大小
 S_dim = 10  # 状态空间
 A_number = 3  # 缓存空间大小
-Request_number = 100  # 一次请求的请求数量
-Stop_number = 500  # 环境请求最大数量
+Request_number = 10  # 一次请求的请求数量
+Stop_number = 30  # 环境请求最大数量
 Node_number = 3  # 节点数量
 W = [1000, 1000, 1000]  # 流行度变化幅度
 

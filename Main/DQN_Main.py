@@ -196,19 +196,17 @@ def test():
 
 
 # 探索率初始
-EPSILON_START = 1.0
+EPSILON_START = 0.5
 # 探索率结束
 EPSILON_END = 0.02
 # 探索率衰减率
-EPSILON_DECAY = 0.9
+EPSILON_DECAY = 1
 # Target Network 更新频率
-TARGET_UPDATE_FREQUENCY = 10
-# 平均reward到达多少演示
-DEMO_REWARD = 100
+TARGET_UPDATE_FREQUENCY = 100
 # 训练次数
-n_episode = 500
+n_episode = 2000
 # 每次训练的最大步数
-n_time_step = 500
+n_time_step = 200
 # 游戏
 # model
 model_path = None

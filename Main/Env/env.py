@@ -26,8 +26,8 @@ class ActionSpace:
 
 class Env(gym.Env):
     def __init__(self):
-        # [0]不同节点的内容流行度，[1]不同节点上一次缓存的内容
-        self.observation_space = np.zeros(shape=(2, Node_number, A_dim))
+        # [0]不同节点的内容流行度，[1]不同节点上一次缓存的内容,[2]上一时刻的请求频率
+        self.observation_space = np.zeros(shape=(3, Node_number, A_dim))
         # 生成的请求
         self.request = np.zeros(shape=(Node_number, Request_number))
         # 动作空间
@@ -68,7 +68,8 @@ class Env(gym.Env):
         # 计算奖励，缓存命中率越高，奖励越高
         reward_node = np.zeros(shape=(Node_number, 1))  # 节点奖励
         for i in range(Node_number):
-            reward_node[i] = -(cache_total[i] - cache_hit[i])
+            reward_node[i] = (cache_hit[i]-(cache_total[i] -
+                              cache_hit[i])) / cache_total[i]
 
         # 计算传输时间延迟
         # 将缓存索引转成one-hot编码
@@ -82,15 +83,24 @@ class Env(gym.Env):
         for i in range(Node_number):
             for file_index in range(A_dim):
                 if last_cache[i][file_index] == 0 and now_cache[i][file_index] == 1:
-                    self.node_timeout[i] += self.FileTransferTime(file_index, self.Lambda)
+                    self.node_timeout[i] += self.FileTransferTime(
+                        file_index, self.Lambda)
             self.node_timeout[i] /= A_dim
 
+        # 统计上一时刻请求频率
+        last_time_request = np.zeros(shape=(Node_number, A_dim))
+        for i in range(Node_number):
+            for index in self.request[i]:
+                last_time_request[i][int(index)] += 1
+        print(last_time_request)
+        print(self.request)
         # 生成新的请求
         self.request, content_popularity = self.CreateRequest()
-
+        print(self.request)
         # 更新状态
         self.observation_space[0] = content_popularity
         self.observation_space[1] = now_cache
+        self.observation_space[2] = last_time_request
 
         # 判断是否结束
         self.stop_number -= Request_number
@@ -138,19 +148,22 @@ class Env(gym.Env):
             if self.request_time[i] == W[i]:
                 # 循环右移一位
                 self.request_time[i] = 0
-                self.distribution[i] = np.concatenate((self.distribution[i][-1:], self.distribution[i][:-1]))
-                self.distribution[i] = self.distribution[i] / sum(self.distribution[i])
+                self.distribution[i] = np.concatenate(
+                    (self.distribution[i][-1:], self.distribution[i][:-1]))
+                self.distribution[i] = self.distribution[i] / \
+                    sum(self.distribution[i])
             content_popularity[i] = self.distribution[i]
-            # request[i] = np.random.choice(np.arange(A_dim), Request_number, p=self.distribution[i])
-            # 按照概率分布产生固定数量的请求
-            req = []
-            for j in range(A_dim):
-                for k in range(int(Request_number * self.distribution[i][j])):
-                    req.append(j)
-            # 维度对齐
-            while len(req) < Request_number:
-                req.append(-1)
-            request[i] = req
+            request[i] = np.random.choice(
+                np.arange(A_dim), Request_number, p=self.distribution[i])
+            # # 按照概率分布产生固定数量的请求
+            # req = []
+            # for j in range(A_dim):
+            #     for k in range(int(Request_number * self.distribution[i][j])):
+            #         req.append(j)
+            # # 维度对齐
+            # while len(req) < Request_number:
+            #     req.append(-1)
+            # request[i] = req
         return request, content_popularity
 
     @staticmethod
