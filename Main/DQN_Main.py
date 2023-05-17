@@ -204,7 +204,7 @@ EPSILON_DECAY = 1
 # Target Network 更新频率
 TARGET_UPDATE_FREQUENCY = 100
 # 训练次数
-n_episode = 2000
+n_episode = 5000
 # 每次训练的最大步数
 n_time_step = 200
 # 游戏
