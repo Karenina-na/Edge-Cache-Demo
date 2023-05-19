@@ -1,6 +1,6 @@
 import gym
 from itertools import combinations
-from param import *
+from Param import *
 from Env.module.probability import *
 
 
@@ -94,6 +94,7 @@ class Env(gym.Env):
         obs_copy = []
         for i in self.observation_space.reshape(-1):
             obs_copy.append(i.copy())
+        obs_copy = np.array(obs_copy)
         return obs_copy, reward, d, \
             {"cache_hit": cache_hit, "cache_total": cache_total,
              "step": Request_number - self.stop_number, "baseline_count": self.baseline_count,
@@ -114,7 +115,11 @@ class Env(gym.Env):
         self.request_time = 0
         self.baseline_count = Baseline
 
-        return self.observation_space.reshape(-1), {}
+        obs_copy = []
+        for i in self.observation_space.reshape(-1):
+            obs_copy.append(i.copy())
+        obs_copy = np.array(obs_copy)
+        return obs_copy, {}
 
     def CreateRequest(self):
         """
@@ -133,17 +138,20 @@ class Env(gym.Env):
             self.distribution = np.concatenate(
                 (self.distribution[-1:], self.distribution[:-1]))
             self.distribution = self.distribution / sum(self.distribution)
-        content_popularity = self.distribution
-        # 按概率分布生成固定次数的请求
+        content_popularity = self.distribution\
+
+        # 低于某个阈值的内容不会被请求
         for index in range(len(content_popularity)):
-            # 低于某个阈值的内容不会被请求
             if content_popularity[index] < Zipf_baseline:
                 content_popularity[index] = 0
         content_popularity = content_popularity / sum(content_popularity)
+
+        # 按概率分布生成固定次数的请求
         req = []
         for i in range(S_dim):
             for j in range(int(Request_number * content_popularity[i])):
                 req.append(i)
+
         # 按概率分布抽样得到请求
         # req = np.random.choice(S_dim, Request_number, p=content_popularity)
         # 维度对齐

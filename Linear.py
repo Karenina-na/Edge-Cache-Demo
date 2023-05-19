@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from Env.env import Env
-from param import *
+from Param import *
 import numpy as np
 from torch.nn import functional as F
 
@@ -57,7 +57,7 @@ classifier = Classifier()
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(classifier.parameters(), lr=0.1)
 
-for epoch in range(1000):
+for epoch in range(2000):
     for i, (data, label) in enumerate(data_loader):
         optimizer.zero_grad()
         output = classifier(data)

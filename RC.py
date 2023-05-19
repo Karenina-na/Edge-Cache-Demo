@@ -1,6 +1,6 @@
 from Env.env import Env
 import numpy as np
-from param import *
+from Param import *
 
 env = Env()
 _, _ = env.reset()

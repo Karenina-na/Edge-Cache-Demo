@@ -6,7 +6,6 @@ import numpy as np
 import os
 
 from multiprocessing import Process, Queue
-from itertools import combinations
 
 
 def set_init(layers: list):
@@ -33,26 +32,19 @@ class SharedAdam(torch.optim.Adam):
 
 
 class Agent(nn.Module):
-    def __init__(self, s_dim: int, a_dim: int, GAMMA: float = 0.9, model_path=None, model_type='train'):
+    def __init__(self, s_dim: int, a_dim: int, GAMMA: float = 0.9, model_path=None):
         super(Agent, self).__init__()
-        self.type = model_type
-
         self.s_dim = s_dim
         self.a_dim = a_dim
         self.GAMMA = GAMMA
         # policy network
         self.pi1 = nn.Linear(s_dim, 128)
-        self.pi2 = nn.Linear(128, 256)
-        self.pi3 = nn.Linear(256, 128)
-        self.pi4 = nn.Linear(128, a_dim)
+        self.pi2 = nn.Linear(128, a_dim)
         # value network
         self.v1 = nn.Linear(s_dim, 128)
-        self.v2 = nn.Linear(128, 256)
-        self.v3 = nn.Linear(256, 256)
-        self.v4 = nn.Linear(256, 128)
-        self.v5 = nn.Linear(128, 1)
+        self.v2 = nn.Linear(128, 1)
         # init
-        set_init([self.pi1, self.pi2, self.pi3, self.pi4, self.v1, self.v2, self.v3, self.v4, self.v5])
+        set_init([self.pi1, self.pi2, self.v1, self.v2])
         self.distribution = torch.distributions.Categorical
 
         self.model_path = model_path
@@ -72,14 +64,9 @@ class Agent(nn.Module):
         :return:    动作分布 [batch_size, action_dim], 价值函数 [batch_size, 1]
         """
         pi1 = torch.tanh(self.pi1(x))
-        pi2 = torch.tanh(self.pi2(pi1))
-        pi3 = torch.tanh(self.pi3(pi2))
-        logits = self.pi4(pi3)
+        logits = self.pi2(pi1)
         v1 = torch.tanh(self.v1(x))
-        v2 = torch.tanh(self.v2(v1))
-        v3 = torch.tanh(self.v3(v2))
-        v4 = torch.tanh(self.v4(v3))
-        values = self.v5(v4)
+        values = self.v2(v1)
         return logits, values
 
     def choose_action(self, state: torch.Tensor):
@@ -88,18 +75,23 @@ class Agent(nn.Module):
         :param state:   状态 [state_dim]
         :return:    动作 [action_dim]
         """
-        if self.type == 'train':
-            self.eval()
-            logits, _ = self.forward(state)
-            prob = F.softmax(logits, dim=1).data
-            m = self.distribution(prob)
-            return m.sample().numpy()[0]
-        else:
-            self.eval()
-            logits, _ = self.forward(state)
-            prob = F.softmax(logits, dim=1).data
-            _, pred = torch.max(prob, 1)
-            return pred.item()
+        # if self.type == 'train':
+        #     self.eval()
+        #     logits, _ = self.forward(state)
+        #     prob = F.softmax(logits, dim=1).data
+        #     m = self.distribution(prob)
+        #     return m.sample().numpy()[0]
+        # else:
+        #     self.eval()
+        #     logits, _ = self.forward(state)
+        #     prob = F.softmax(logits, dim=1).data
+        #     _, pred = torch.max(prob, 1)
+        #     return pred.item()
+        self.eval()
+        logits, _ = self.forward(state)
+        prob = F.softmax(logits, dim=1).data
+        m = self.distribution(prob)
+        return m.sample().numpy()[0]
 
     def loss_func(self, state: torch.Tensor, actions: torch.Tensor, target: torch.Tensor):
         """
@@ -137,6 +129,7 @@ class Agent(nn.Module):
             log_prob = m.log_prob(action)
             critic_loss.append(F.smooth_l1_loss(values, returns))
             actor_loss.append(-log_prob * advantage)
+
         return torch.stack(actor_loss).sum(), torch.stack(critic_loss).sum()
 
     def save_model(self):
@@ -157,4 +150,3 @@ if __name__ == "__main__":
     print("reward shape:", r.shape)
     agent = Agent(s_dim=5, a_dim=10, GAMMA=0.9)
     print(agent(s))
-    print(agent.choose_action(s))

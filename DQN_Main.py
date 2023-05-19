@@ -2,9 +2,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import random
-from DQN_Agent import Agent
+from Agent.DQN_Agent import Agent
 from Env.env import Env
-from param import *
+from Param import *
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -26,6 +26,7 @@ def train():
     for episode_i in range(n_episode):
 
         # 一次游戏的总reward
+        avg_baseline = 0
         episode_reward = 0
         for step_i in range(n_time_step):
 
@@ -40,7 +41,8 @@ def train():
                 a = agent.online_net.act(s)
 
             # 执行动作
-            s_, r, done, trunk, info = env.step(a)  # trunk,info will not be used
+            s_, r, done, info, _ = env.step(a)  # trunk,info will not be used
+            avg_baseline += info['baseline_count']
             # 记录经验
             agent.memo.add_memo(s, a, r, done, s_)
 
@@ -100,7 +102,6 @@ def train():
             total = 0
             hit = 0
             step = 0
-            avg_baseline = 0
             agent.online_net.eval()
             while True:
                 s = torch.as_tensor(s, dtype=torch.float32).unsqueeze(0)
@@ -108,7 +109,6 @@ def train():
                 s, r, done, info, _ = env_test.step(a)
                 total += info["cache_total"]
                 hit += info["cache_hit"]
-                avg_baseline += info["baseline_count"]
                 reward_all += r
                 step += 1
                 if done or step >= n_time_step:
@@ -140,7 +140,6 @@ def train():
             print("-" * 50)
             break
     print("Hit Rate: ", hit / total)
-    agent.save_model()
 
 
 def test():

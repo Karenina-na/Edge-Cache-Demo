@@ -12,12 +12,12 @@ class ReplayMemory:
         self.n_s = n_s
         self.n_a = n_a
 
-        self.MEMORY_SIZE = 10000
+        self.MEMORY_SIZE = 30000
         self.BATCH_SIZE = 64
         self.all_s = np.empty(shape=(self.MEMORY_SIZE, self.n_s), dtype=np.float64)
-        self.all_a = np.random.randint(low=0, high=self.n_a, size=self.MEMORY_SIZE, dtype=np.uint8)
+        self.all_a = np.random.randint(low=0, high=self.n_a, size=self.MEMORY_SIZE, dtype=np.int32)
         self.all_r = np.empty(self.MEMORY_SIZE, dtype=np.float64)
-        self.all_done = np.random.randint(low=0, high=2, size=self.MEMORY_SIZE, dtype=np.uint8)
+        self.all_done = np.random.randint(low=0, high=2, size=self.MEMORY_SIZE, dtype=np.int32)
         self.all_s_ = np.empty(shape=(self.MEMORY_SIZE, self.n_s), dtype=np.float64)
 
         self.count = 0
@@ -73,16 +73,18 @@ class DQN(nn.Module):
             nn.Tanh(),
             nn.Linear(128, 256),
             nn.Tanh(),
+            nn.Linear(256, 256),
+            nn.Tanh(),
             nn.Linear(256, 128),
             nn.Tanh(),
-            nn.Linear(128, n_output)
-        )
+            nn.Linear(128, n_output))
 
     def forward(self, x):
         return self.net(x)
 
     def act(self, obs):
-        obs_tensor = torch.as_tensor(obs, dtype=torch.float32)
+        device = self.net[0].weight.device
+        obs_tensor = torch.as_tensor(obs, dtype=torch.float32, device=device)
 
         # 计算Q值
         q_values = self(obs_tensor.unsqueeze(0))
@@ -108,7 +110,7 @@ class Agent:
         self.GAMMA = 0.9
 
         # 学习率
-        self.learning_rate = 1e-2
+        self.learning_rate = 0.001
 
         # 创建经验池
         self.memo = ReplayMemory(n_s=self.n_input, n_a=self.n_output)
@@ -142,8 +144,3 @@ class Agent:
             os.remove(self.model_path + "/dqn.pth")
         # 保存模型
         torch.save(self.online_net.state_dict(), self.model_path + "/dqn.pth")
-
-
-if __name__ == "__main__":
-    agent = Agent(idx=0, n_input=30, n_output=100, mode='train', model_path=None)
-    print(agent.online_net.act(np.random.randn(30)))
