@@ -12,7 +12,7 @@ class ReplayMemory:
         self.n_s = n_s
         self.n_a = n_a
 
-        self.MEMORY_SIZE = 10000
+        self.MEMORY_SIZE = 30000
         self.BATCH_SIZE = 64
         self.all_s = np.empty(shape=(self.MEMORY_SIZE, self.n_s), dtype=np.float64)
         self.all_a = np.random.randint(low=0, high=self.n_a, size=self.MEMORY_SIZE, dtype=np.uint8)
@@ -73,6 +73,8 @@ class DQN(nn.Module):
             nn.Tanh(),
             nn.Linear(128, 256),
             nn.Tanh(),
+            nn.Linear(256, 256),
+            nn.Tanh(),
             nn.Linear(256, 128),
             nn.Tanh(),
             nn.Linear(128, n_output))
@@ -105,10 +107,10 @@ class Agent:
         self.model_path = model_path
 
         # 回报折扣率
-        self.GAMMA = 0.99
+        self.GAMMA = 0.9
 
         # 学习率
-        self.learning_rate = 1e-3
+        self.learning_rate = 0.001
 
         # 创建经验池
         self.memo = ReplayMemory(n_s=self.n_input, n_a=self.n_output)

@@ -72,7 +72,7 @@ def train():
             max_target_q_values = target_q_values.max(dim=1, keepdim=True)[0]
 
             # 计算 target Q(t)
-            targets = batch_r + agent.GAMMA * max_target_q_values
+            targets = batch_r + agent.GAMMA * (1 - batch_done) * max_target_q_values
 
             # 计算 online Q(t) online网络
             q_values = agent.online_net(batch_s)
@@ -100,6 +100,7 @@ def train():
             total = 0
             hit = 0
             step = 0
+            avg_baseline = 0
             agent.online_net.eval()
             while True:
                 s = torch.as_tensor(s, dtype=torch.float32).unsqueeze(0)
@@ -107,11 +108,13 @@ def train():
                 s, r, done, info, _ = env_test.step(a)
                 total += info["cache_total"]
                 hit += info["cache_hit"]
+                avg_baseline += info["baseline_count"]
                 reward_all += r
                 step += 1
                 if done or step >= n_time_step:
                     break
             print("Hit Rate: ", hit / total)
+            print("Avg Baseline: ", avg_baseline / step)
             agent.online_net.train()
 
     env = Env()
@@ -137,7 +140,7 @@ def train():
             print("-" * 50)
             break
     print("Hit Rate: ", hit / total)
-    # agent.save_model()
+    agent.save_model()
 
 
 def test():

@@ -23,14 +23,14 @@ class ActionSpace:
         for i in range(file_number):
             self.action_index_dic.append(cache[:cache_cab])
             cache = cache[1:] + cache[:1]
-        np.random.shuffle(self.action_index_dic)
+        # np.random.shuffle(self.action_index_dic)
 
         self.actions_index_number = len(self.action_index_dic)  # 动作空间的大小
 
 
 class Env(gym.Env):
     def __init__(self):
-        # [0]内容流行度，[1]上一次缓存的内容
+        # [0]现在内容流行度，[1]现在缓存的内容
         self.observation_space = np.zeros(shape=(2, S_dim))
         # 生成的请求
         self.request = np.zeros(shape=Request_number)
@@ -44,6 +44,8 @@ class Env(gym.Env):
         self.distribution = ProbabilityDensity.Zipf(np.arange(S_dim), Zipf_alpha, S_dim)
         # 内容流行度记请求次数改变
         self.request_time = 0
+        # baseline计数器
+        self.baseline_count = Baseline
 
     def step(self, action):
         """
@@ -59,11 +61,10 @@ class Env(gym.Env):
                 cache_hit += 1
         # 请求中非 -1 的数量
         cache_total = len(self.request[self.request != -1])
-
         # 计算奖励，缓存命中率越高，奖励越高
         # reward = cache_hit / cache_total
-        reward = cache_hit
-
+        reward = cache_hit - cache_total
+        self.baseline_count -= cache_hit - cache_total
         # 统计上一时刻请求频率
         last_time_request = np.zeros(S_dim)
         for index in self.request:
@@ -81,14 +82,22 @@ class Env(gym.Env):
         self.observation_space[0] = content_popularity * 10
         self.observation_space[1] = now_cache
         # self.observation_space[2] = last_time_request
-
+        # self.observation_space[2] = np.array([self.baseline_count] * S_dim)
         # 判断是否结束
         self.stop_number -= Request_number
         self.request_time += Request_number
-        d = self.stop_number <= 0
+        d = self.stop_number <= 0 or self.baseline_count <= 0
+        if self.baseline_count <= 0:
+            reward -= 100
 
-        return self.observation_space.reshape(-1), reward, d, \
-            {"cache_hit": cache_hit, "cache_total": cache_total}, False
+        # 拷贝self.observation_space，防止被修改
+        obs_copy = []
+        for i in self.observation_space.reshape(-1):
+            obs_copy.append(i.copy())
+        return obs_copy, reward, d, \
+            {"cache_hit": cache_hit, "cache_total": cache_total,
+             "step": Request_number - self.stop_number, "baseline_count": self.baseline_count,
+             }, False
 
     def reset(self):
         # 初始化状态
@@ -96,12 +105,14 @@ class Env(gym.Env):
         self.observation_space[0] = content_popularity
         self.observation_space[1] = np.zeros(S_dim)
         # self.observation_space[2] = np.zeros(S_dim)
+        # self.observation_space[2] = np.array([self.baseline_count] * S_dim)
         self.request = request
 
         # 初始化仿真步数
         self.stop_number = Stop_number
         self.distribution = ProbabilityDensity.Zipf(np.arange(S_dim), Zipf_alpha, S_dim)
         self.request_time = 0
+        self.baseline_count = Baseline
 
         return self.observation_space.reshape(-1), {}
 
@@ -124,10 +135,17 @@ class Env(gym.Env):
             self.distribution = self.distribution / sum(self.distribution)
         content_popularity = self.distribution
         # 按概率分布生成固定次数的请求
+        for index in range(len(content_popularity)):
+            # 低于某个阈值的内容不会被请求
+            if content_popularity[index] < Zipf_baseline:
+                content_popularity[index] = 0
+        content_popularity = content_popularity / sum(content_popularity)
         req = []
         for i in range(S_dim):
             for j in range(int(Request_number * content_popularity[i])):
                 req.append(i)
+        # 按概率分布抽样得到请求
+        # req = np.random.choice(S_dim, Request_number, p=content_popularity)
         # 维度对齐
         while len(req) < Request_number:
             req.append(-1)
@@ -144,10 +162,13 @@ if __name__ == "__main__":
     env = Env()
     obs, _ = env.reset()
 
-    action = 2
+    action = 0
 
     obs, reward, done, info, _ = env.step(action)
     print("action size", np.array(action).shape)
+    print("content freq ", obs[:S_dim])
+    print(env.action_space.action_index_dic)
+    print("request ", env.request)
     print("state size ", np.array(obs).shape)
     print("reward ", reward)
     print("done ", done)
