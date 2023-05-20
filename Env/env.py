@@ -132,11 +132,11 @@ class Env(gym.Env):
         request = np.zeros(Request_number)  # 请求
         content_popularity = np.zeros(S_dim)  # 内容流行度
         # 内容流行度移位
-        if self.request_time >= w:
+        if self.request_time >= Zipf_w:
             self.request_time = 0
-            # 循环右移一位
+            # 循环右移n位置
             self.distribution = np.concatenate(
-                (self.distribution[-1:], self.distribution[:-1]))
+                (self.distribution[-Zipf_step:], self.distribution[:-Zipf_step]))
             self.distribution = self.distribution / sum(self.distribution)
         content_popularity = self.distribution\
 
