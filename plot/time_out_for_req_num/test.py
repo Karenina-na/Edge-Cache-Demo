@@ -1,18 +1,7 @@
-# DQN
-EPSILON_START = 0.5
-EPSILON_END = 0.02
-EPSILON_DECAY = 100000
-TARGET_UPDATE_FREQUENCY = 20
-n_episode = 1000
-n_time_step = 1000
-model_path = None
-
 # 环境参数
 S_dim = 15  # 文件个数
 cache_space = 4  # 缓存空间大小
 Stop_number = 200  # 仿真请求总数
-Request_number = 30  # 一次请求个数起始
-Request_number_max = 50  # 一次请求个数上限
 Zipf_w = 1  # 流行度变化幅度
 Zipf_step = 2  # zipf分布变化步长
 Zipf_alpha = 0.6  # zipf分布参数
@@ -22,4 +11,8 @@ file_w = [0.1, 0.9, 0.5]
 file_scale = [20000, 70000]  # 文件大小缩放范围
 
 # fifo lfu rc dqn
-time_out = [249.137, 240.617, 313.050, 153.713]
+request_num = [10, 20, 30, 40, 50, 60, 70, 80]
+fifo = [4.42, 77.79, 162.20, 249.30, 338.09, 416.34, 504.37, 593.51]
+lfu = [4.20, 97.07, 163.71, 240.62, 326.33, 397.65, 481.83, 567.74]
+rc = [4.35, 100.50, 204.52, 310.72, 419.16, 520.22, 624.60, 732.49]
+dqn = [4.59, 50.35, 99.8, 162.16, 198.84, 218.63, 261.70, 320.28]
