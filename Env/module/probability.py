@@ -139,5 +139,5 @@ def testDistribution():
 
 
 if __name__ == '__main__':
-    testProbabilityDensity()
-    # testDistribution()
+    # testProbabilityDensity()
+    testDistribution()

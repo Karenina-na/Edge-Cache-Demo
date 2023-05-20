@@ -84,8 +84,8 @@ class Env(gym.Env):
         # self.observation_space[2] = last_time_request
         # self.observation_space[2] = np.array([self.baseline_count] * S_dim)
         # 判断是否结束
-        self.stop_number -= Request_number
-        self.request_time += Request_number
+        self.stop_number -= self.request_number
+        self.request_time += self.request_number
         d = self.stop_number <= 0 or self.baseline_count <= 0
         if self.baseline_count <= 0:
             reward -= 100
@@ -97,7 +97,7 @@ class Env(gym.Env):
         obs_copy = np.array(obs_copy)
         return obs_copy, reward, d, \
             {"cache_hit": cache_hit, "cache_total": cache_total,
-             "step": Request_number - self.stop_number, "baseline_count": self.baseline_count,
+             "step": Stop_number - self.stop_number, "baseline_count": self.baseline_count,
              }, False
 
     def reset(self):
@@ -127,7 +127,13 @@ class Env(gym.Env):
         :return: 请求，内容流行度
         request = [1,2,3,4,5,6,7,8,9,10]
         """
-
+        # 泊松分布设定请求偏移量
+        request_num_dis = []
+        for i in range(Request_number_max-Request_number):
+            request_num_dis.append(ProbabilityMass.Poisson(i, 2))
+        request_num_dis = request_num_dis / sum(request_num_dis)
+        request_num_bias = np.random.choice(np.arange(Request_number_max-Request_number), p=request_num_dis)
+        self.request_number = Request_number + request_num_bias
         # 打乱顺序，生成节点的请求
         request = np.zeros(Request_number)  # 请求
         content_popularity = np.zeros(S_dim)  # 内容流行度
@@ -138,8 +144,8 @@ class Env(gym.Env):
             self.distribution = np.concatenate(
                 (self.distribution[-Zipf_step:], self.distribution[:-Zipf_step]))
             self.distribution = self.distribution / sum(self.distribution)
-        content_popularity = self.distribution\
-
+        content_popularity = self.distribution \
+ \
         # 低于某个阈值的内容不会被请求
         for index in range(len(content_popularity)):
             if content_popularity[index] < Zipf_baseline:
@@ -149,15 +155,15 @@ class Env(gym.Env):
         # 按概率分布生成固定次数的请求
         req = []
         for i in range(S_dim):
-            for j in range(int(Request_number * content_popularity[i])):
+            for j in range(int(self.request_number * content_popularity[i])):
                 req.append(i)
 
         # 按概率分布抽样得到请求
-        # req = np.random.choice(S_dim, Request_number, p=content_popularity)
+        # req = np.random.choice(S_dim, self.request_number, p=content_popularity)
         # 维度对齐
-        while len(req) < Request_number:
+        while len(req) < self.request_number:
             req.append(-1)
-        self.request = np.array(req[:Request_number])
+        self.request = np.array(req[:self.request_number])
         return self.request, content_popularity
 
 

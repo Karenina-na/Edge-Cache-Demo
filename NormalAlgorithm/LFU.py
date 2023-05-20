@@ -27,9 +27,6 @@ for i in range(10000):
         cache_index.append(dic[i][0])
         if len(cache_index) == cache_space:
             break
-    print(last_request)
-    print(cache_index)
-    print(request)
     # 找到对应的action
     a = np.random.choice(env.action_space.actions_index_number, 1, replace=False)[0]
     action_dic = env.action_space.action_index_dic
