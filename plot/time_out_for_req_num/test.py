@@ -40,12 +40,12 @@ my_line_style = ['-', '--', '-.', ':', '-']
 my_marker_style = ['o', '*', 's', 'D', 'P']
 
 # Draw Plot and Annotate
-fig, ax = plt.subplots(1, 1, figsize=(16, 9), dpi=200)
+fig, ax = plt.subplots(1, 1, figsize=(12, 8), dpi=300)
 
 columns = df.columns[1:]
 for i, column in enumerate(columns):
-    plt.plot(df['step'].values - 10, df[column].values, lw=1.5, color=my_colors[i], label=column,
-             linestyle=my_line_style[i], marker=my_marker_style[i], markersize=4)
+    plt.plot(df['step'].values - 10, df[column].values, lw=2, color=my_colors[i], label=column,
+             linestyle=my_line_style[i], marker=my_marker_style[i], markersize=6)
     plt.text(request_num.iloc[-1].values[0] - 8, df[column].values[-1], column, fontsize=14, color=my_colors[i])
 
 # Draw Tick lines
@@ -66,7 +66,7 @@ plt.yticks(range(y_LL, y_UL, y_interval), [str(y) for y in range(y_LL, y_UL, y_i
 plt.xticks(range(0, request_num.iloc[-1].values[0], 10), df['step'].values[::1], horizontalalignment='left', fontsize=12)
 plt.ylim(y_LL, y_UL)
 plt.xlim(-2, request_num.iloc[-1].values[0] + 7)
-plt.ylabel('The number of requests.', fontsize=14)
+plt.ylabel('The time latency of different algorithms. (ms)', fontsize=14)
 plt.xlabel('The number of requests.', fontsize=14)
 
 plt.legend(loc='lower right', ncol=1, fontsize=12)
