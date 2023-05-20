@@ -18,5 +18,5 @@ Zipf_step = 2  # zipf分布变化步长
 Zipf_alpha = 0.9  # zipf分布参数
 Zipf_baseline = 0.062  # 低于某个阈值的内容不会被请求
 Baseline = 50  # 奖励持续基线
-
-
+file_w = [0.6, 0.7, 0.5]
+file_scale = [1000000, 5000000]  # 文件大小缩放范围

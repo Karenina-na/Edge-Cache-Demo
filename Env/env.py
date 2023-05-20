@@ -2,6 +2,7 @@ import gym
 from itertools import combinations
 from Param import *
 from Env.module.probability import *
+from Env.module.communicate import Calculate_time
 
 
 # 动作空间
@@ -54,11 +55,19 @@ class Env(gym.Env):
         """
         # 将动作转成具体的文件索引
         cache_index = self.action_space.action_index_dic[action]
-        # 计算缓存命中率
+
+        # 计算缓存命中率和时延
         cache_hit = 0  # 缓存命中率
+        time_out = 0  # 时延
         for request in self.request:
+            if request == -1:
+                continue
             if request in cache_index:
                 cache_hit += 1
+                time_out += Calculate_time(request, "ground")
+            else:
+                time_out += Calculate_time(request, "plane")
+
         # 请求中非 -1 的数量
         cache_total = len(self.request[self.request != -1])
         # 计算奖励，缓存命中率越高，奖励越高
@@ -98,7 +107,7 @@ class Env(gym.Env):
         return obs_copy, reward, d, \
             {"cache_hit": cache_hit, "cache_total": cache_total,
              "step": Stop_number - self.stop_number, "baseline_count": self.baseline_count,
-             }, False
+             "time_out": time_out}, False
 
     def reset(self):
         # 初始化状态
@@ -129,10 +138,10 @@ class Env(gym.Env):
         """
         # 泊松分布设定请求偏移量
         request_num_dis = []
-        for i in range(Request_number_max-Request_number):
+        for i in range(Request_number_max - Request_number):
             request_num_dis.append(ProbabilityMass.Poisson(i, 2))
         request_num_dis = request_num_dis / sum(request_num_dis)
-        request_num_bias = np.random.choice(np.arange(Request_number_max-Request_number), p=request_num_dis)
+        request_num_bias = np.random.choice(np.arange(Request_number_max - Request_number), p=request_num_dis)
         self.request_number = Request_number + request_num_bias
         # 打乱顺序，生成节点的请求
         request = np.zeros(Request_number)  # 请求
