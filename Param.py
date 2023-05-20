@@ -1,5 +1,5 @@
 # DQN
-EPSILON_START = 0.5
+EPSILON_START = 0.8
 EPSILON_END = 0.02
 EPSILON_DECAY = 100000
 TARGET_UPDATE_FREQUENCY = 20
@@ -11,8 +11,8 @@ model_path = None
 S_dim = 15  # 文件个数 15
 cache_space = 4  # 缓存空间大小 4
 Stop_number = 200  # 仿真请求总数 200
-Request_number = 70  # 一次请求个数起始 30
-Request_number_max = 90  # 一次请求个数上限 50
+Request_number = 30  # 一次请求个数起始 30
+Request_number_max = 50  # 一次请求个数上限 50
 Zipf_w = 1  # 流行度变化幅度 1
 Zipf_step = 2  # zipf分布变化步长 2
 Zipf_alpha = 0.6  # zipf分布参数 0.6

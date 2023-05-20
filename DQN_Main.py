@@ -6,7 +6,6 @@ from Agent.DQN_Agent import Agent
 from Env.env import Env
 from Param import *
 
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -17,18 +16,19 @@ def train():
     n_action = env.action_space.actions_index_number
     """Generate agents"""
 
-    agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train', model_path=model_path, device = device)
+    agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train', model_path=model_path, device=device)
 
     """Main Training Loop"""
 
     REWARD_BUFFER = np.zeros(shape=n_episode)
-
+    HIT_RATE = []
+    TIME_OUT = []
+    BASELINE = []
+    REWARD = []
     for episode_i in range(n_episode):
 
         # 一次游戏的总reward
-        avg_baseline = 0
         episode_reward = 0
-        avg_time_out = 0
         for step_i in range(n_time_step):
 
             # 选择随机动作的概率
@@ -40,11 +40,8 @@ def train():
                 a = np.random.randint(0, n_action)
             else:
                 a = agent.online_net.act(s)
-
             # 执行动作
             s_, r, done, info, _ = env.step(a)  # trunk,info will not be used
-            avg_baseline += info['baseline_count']
-            avg_time_out += info['time_out']
 
             # 记录经验
             agent.memo.add_memo(s, a, r, done, s_)
@@ -101,9 +98,11 @@ def train():
             # 演示
             env_test = Env()
             s, info = env_test.reset()
-            reward_all = 0
+            reward = 0
             total = 0
             hit = 0
+            baseline = 0
+            time_out = 0
             step = 0
             agent.online_net.eval()
             while True:
@@ -112,18 +111,28 @@ def train():
                 s, r, done, info, _ = env_test.step(a)
                 total += info["cache_total"]
                 hit += info["cache_hit"]
-                reward_all += r
+                baseline += info["baseline_count"]
+                time_out += info["time_out"]
+                reward += r
                 step += 1
                 if done or step >= n_time_step:
                     break
             print("Hit Rate: ", hit / total)
-            print("Avg Baseline: ", avg_baseline / step)
-            print("Avg Time Out: ", avg_time_out / step)
+            print("Avg Baseline: ", baseline / step)
+            print("Avg Time Out: ", time_out / step)
+            print("Avg Reward: ", reward/step)
+            HIT_RATE.append(hit / total)
+            TIME_OUT.append(time_out / step)
+            BASELINE.append(baseline / step)
+            REWARD.append(reward/step)
+            print("#" * 50)
+            # record
+
             agent.online_net.train()
 
     env = Env()
     s, info = env.reset()
-    reward_all = 0
+    reward = 0
     total = 0
     hit = 0
     time_out = 0
@@ -136,17 +145,36 @@ def train():
         total += info["cache_total"]
         hit += info["cache_hit"]
         time_out += info["time_out"]
-        reward_all += r
+        reward += r
         step += 1
         if done or step >= n_time_step:
             env.reset()
             print("#" * 50)
-            print("Finished Reward: ", reward_all)
+            print("Finished Reward: ", reward)
             print("Step Number: ", step)
             print("Hit Rate: ", hit / total)
-            print("Time Out: ", time_out/step)
+            print("Time Out: ", time_out / step)
             print("-" * 50)
             break
+
+    # 保存数据
+    import pandas as pd
+    reward_all = np.array(REWARD)
+    time_out_all = np.array(TIME_OUT)
+    hit_rate_all = np.array(HIT_RATE)
+    baseline_all = np.array(BASELINE)
+    print(reward_all.shape)
+    print(time_out_all.shape)
+    print(hit_rate_all.shape)
+    print(baseline_all.shape)
+    reward_pd = pd.DataFrame(reward_all)
+    time_out_pd = pd.DataFrame(time_out_all)
+    hit_rate_pd = pd.DataFrame(hit_rate_all)
+    baseline_pd = pd.DataFrame(baseline_all)
+    reward_pd.to_csv("./Result/logs/reward.csv", index=False, header=False)
+    time_out_pd.to_csv("./Result/logs/time_out.csv", index=False, header=False)
+    hit_rate_pd.to_csv("./Result/logs/hit_rate.csv", index=False, header=False)
+    baseline_pd.to_csv("./Result/logs/baseline.csv", index=False, header=False)
 
 
 if __name__ == '__main__':

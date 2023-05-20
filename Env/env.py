@@ -19,6 +19,7 @@ class ActionSpace:
         # comb = combinations(self.action_space, cache_cab)
         # for i in comb:
         #     self.action_index_dic.append(i)
+
         # 缓存索引循环位移
         cache = [i for i in range(S_dim)]
         for i in range(file_number):
@@ -188,7 +189,8 @@ if __name__ == "__main__":
     action = 0
 
     obs, reward, done, info, _ = env.step(action)
-    print("action size", np.array(action).shape)
+
+    print("action size", env.action_space.actions_index_number)
     print("content freq ", obs[:S_dim])
     print(env.action_space.action_index_dic)
     print("request ", env.request)
