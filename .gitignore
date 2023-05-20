@@ -165,3 +165,4 @@ Data/**
 /Result/checkpoints/**
 /Result/images/**
 /Result/logs/**
+/plot/reward_al/**.csv
