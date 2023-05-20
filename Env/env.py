@@ -66,7 +66,7 @@ class Env(gym.Env):
                 cache_hit += 1
                 time_out += Calculate_time(request, "ground")
             else:
-                time_out += Calculate_time(request, "plane")
+                time_out += Calculate_time(request, "ground") + Calculate_time(request, "plane")
 
         # 请求中非 -1 的数量
         cache_total = len(self.request[self.request != -1])

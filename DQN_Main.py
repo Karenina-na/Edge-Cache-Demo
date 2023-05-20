@@ -28,6 +28,7 @@ def train():
         # 一次游戏的总reward
         avg_baseline = 0
         episode_reward = 0
+        avg_time_out = 0
         for step_i in range(n_time_step):
 
             # 选择随机动作的概率
@@ -43,6 +44,8 @@ def train():
             # 执行动作
             s_, r, done, info, _ = env.step(a)  # trunk,info will not be used
             avg_baseline += info['baseline_count']
+            avg_time_out += info['time_out']
+
             # 记录经验
             agent.memo.add_memo(s, a, r, done, s_)
 
@@ -115,6 +118,7 @@ def train():
                     break
             print("Hit Rate: ", hit / total)
             print("Avg Baseline: ", avg_baseline / step)
+            print("Avg Time Out: ", avg_time_out / step)
             agent.online_net.train()
 
     env = Env()
@@ -122,6 +126,7 @@ def train():
     reward_all = 0
     total = 0
     hit = 0
+    time_out = 0
     # 演示
     step = 0
     while True:
@@ -130,6 +135,7 @@ def train():
         s, r, done, info, _ = env.step(a)
         total += info["cache_total"]
         hit += info["cache_hit"]
+        time_out += info["time_out"]
         reward_all += r
         step += 1
         if done or step >= n_time_step:
@@ -137,40 +143,10 @@ def train():
             print("#" * 50)
             print("Finished Reward: ", reward_all)
             print("Step Number: ", step)
+            print("Hit Rate: ", hit / total)
+            print("Time Out: ", time_out/step)
             print("-" * 50)
             break
-    print("Hit Rate: ", hit / total)
-
-
-def test():
-    """Generate agents"""
-    env = Env()
-    s, info = env.reset()
-    n_state = s.shape[0]
-    n_action = env.action_space.actions_index_number
-
-    agent = Agent(idx=0, n_input=n_state, n_output=n_action, mode='train', model_path=model_path)
-
-    reward_all = 0
-    total = 0
-    hit = 0
-    # 演示
-    step = 0
-    while True:
-        a = agent.online_net.act(s)
-        s, r, done, info, _ = env.step(a)
-        total += info["cache_total"]
-        hit += info["cache_hit"]
-        reward_all += r
-        step += 1
-        if done or step >= n_time_step:
-            env.reset()
-            print("#" * 50)
-            print("Finished Reward: ", reward_all)
-            print("Step Number: ", step)
-            print("-" * 50)
-            break
-    print("Hit Rate: ", hit / total)
 
 
 if __name__ == '__main__':

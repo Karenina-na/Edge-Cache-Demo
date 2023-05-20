@@ -103,8 +103,6 @@ for i in range(0, S_dim):
 
 # 计算传输时间
 def Calculate_time(index, type):
-    print(index)
-    print(type)
     if type == "ground":
         rate = ground_communicate()  # 地面
     elif type == "plane":
