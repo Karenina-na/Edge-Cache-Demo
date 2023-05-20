@@ -144,8 +144,8 @@ class Env(gym.Env):
             self.distribution = np.concatenate(
                 (self.distribution[-Zipf_step:], self.distribution[:-Zipf_step]))
             self.distribution = self.distribution / sum(self.distribution)
-        content_popularity = self.distribution \
- \
+        content_popularity = self.distribution
+
         # 低于某个阈值的内容不会被请求
         for index in range(len(content_popularity)):
             if content_popularity[index] < Zipf_baseline:

@@ -15,6 +15,8 @@ Request_number = 30  # 一次请求个数起始
 Request_number_max = 50  # 一次请求个数上限
 Zipf_w = 1  # 流行度变化幅度
 Zipf_step = 2  # zipf分布变化步长
-Zipf_alpha = 0.6  # zipf分布参数
+Zipf_alpha = 0.9  # zipf分布参数
 Zipf_baseline = 0.062  # 低于某个阈值的内容不会被请求
 Baseline = 50  # 奖励持续基线
+
+
