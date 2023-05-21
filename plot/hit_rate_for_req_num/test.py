@@ -17,12 +17,6 @@ lfu = [0.25, 0.32, 0.42, 0.56, 0.55, 0.57, 0.53, 0.52]
 rc = [0.26, 0.27, 0.27, 0.268, 0.270, 0.272, 0.267, 0.261]
 dqn = [0.31, 0.51, 0.65, 0.73, 0.83, 0.80, 0.77, 0.78]
 
-# 放大一百倍
-fifo = [i * 100 for i in fifo]
-lfu = [i * 100 for i in lfu]
-rc = [i * 100 for i in rc]
-dqn = [i * 100 for i in dqn]
-
 import numpy as np
 import pandas as pd
 from doc.Plot.require import *
