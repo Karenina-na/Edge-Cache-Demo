@@ -15,13 +15,7 @@ request_num = [10, 20, 30, 40, 50, 60, 70, 80]
 fifo = [0.27, 0.45, 0.520, 0.532, 0.521, 0.51, 0.50, 0.49]
 lfu = [0.25, 0.32, 0.42, 0.56, 0.55, 0.57, 0.53, 0.52]
 rc = [0.26, 0.27, 0.27, 0.268, 0.270, 0.272, 0.267, 0.261]
-dqn = [0.31, 0.42, 0.65, 0.73, 0.83, 0.80, 0.77, 0.78]
-
-# 放大一百倍
-fifo = [i * 100 for i in fifo]
-lfu = [i * 100 for i in lfu]
-rc = [i * 100 for i in rc]
-dqn = [i * 100 for i in dqn]
+dqn = [0.31, 0.51, 0.65, 0.73, 0.83, 0.80, 0.77, 0.78]
 
 # 放大一百倍
 fifo = [i * 100 for i in fifo]
@@ -41,11 +35,11 @@ dqn = pd.DataFrame(dqn)
 
 # Import Data
 df = pd.concat([request_num, fifo, lfu, rc, dqn], axis=1)
-df.columns = ['step', 'FIFO',  'LFU', 'RC', 'DQN']
+df.columns = ['step', 'FIFO', 'LFU', 'RC', 'DQN']
 
 # Define the upper limit, lower limit, interval of Y axis and colors
-y_LL = 10
-y_UL = 90
+y_LL = 9
+y_UL = 91
 y_interval = 10
 my_colors = ['tab:red', 'tab:blue', 'tab:green', 'tab:orange', 'tab:brown']
 my_line_style = ['-', '--', '-.', ':', '-']
@@ -66,7 +60,7 @@ for y in range(y_LL, y_UL, y_interval):
 
 # Draw Tick lines
 for x in range(0, request_num.iloc[-1].values[0], 10):
-    plt.axvline(x=x, color='black', alpha=0.3, linestyle="--", linewidth=0.5)
+    plt.axvline(x=x, ymin=0.01, ymax=0.99, color='black', alpha=0.3, linestyle="--", linewidth=0.5)
 
 # Decorations
 plt.tick_params(axis="both", which="both", bottom=False, top=False, labelbottom=True, left=False, right=False,
@@ -78,14 +72,15 @@ plt.gca().spines["bottom"].set_alpha(0.3)
 plt.gca().spines["right"].set_alpha(0.3)
 plt.gca().spines["left"].set_alpha(0.3)
 
-plt.yticks(range(y_LL, y_UL, y_interval), [str(y/100) for y in range(y_LL, y_UL, y_interval)], fontsize=12)
+plt.yticks(range(y_LL, y_UL, y_interval), [str(y / 100) for y in range(y_LL, y_UL, y_interval)], fontsize=12)
 
-plt.xticks(range(0, request_num.iloc[-1].values[0], 10), df['step'].values[::1], horizontalalignment='left', fontsize=12)
+plt.xticks(range(0, request_num.iloc[-1].values[0], 10), df['step'].values[::1], horizontalalignment='left',
+           fontsize=12)
 plt.ylim(y_LL, y_UL)
 plt.xlim(-2, request_num.iloc[-1].values[0] - 7)
 plt.ylabel('The CHR of different algorithms', fontsize=14)
 plt.xlabel('The number of requests', fontsize=14)
 
 plt.legend(loc='lower right', ncol=1, fontsize=12)
+plt.savefig("../../Result/images/CHR.png", dpi=300)
 plt.show()
-

@@ -33,7 +33,7 @@ df.columns = ['step', 'FIFO',  'LFU', 'RC', 'DQN']
 print(df.head())
 # Define the upper limit, lower limit, interval of Y axis and colors
 y_LL = 0
-y_UL = 800
+y_UL = 801
 y_interval = 100
 my_colors = ['tab:red', 'tab:blue', 'tab:green', 'tab:orange', 'tab:brown']
 my_line_style = ['-', '--', '-.', ':', '-']
@@ -74,4 +74,5 @@ plt.ylabel('The time latency of different algorithms (ms)', fontsize=14)
 plt.xlabel('The number of requests', fontsize=14)
 
 plt.legend(loc='lower right', ncol=1, fontsize=12)
+plt.savefig("../../Result/images/Time_Latency.png", dpi=300)
 plt.show()
