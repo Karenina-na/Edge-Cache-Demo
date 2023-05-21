@@ -23,6 +23,12 @@ lfu = [i * 100 for i in lfu]
 rc = [i * 100 for i in rc]
 dqn = [i * 100 for i in dqn]
 
+# 放大一百倍
+fifo = [i * 100 for i in fifo]
+lfu = [i * 100 for i in lfu]
+rc = [i * 100 for i in rc]
+dqn = [i * 100 for i in dqn]
+
 import numpy as np
 import pandas as pd
 from doc.Plot.require import *
