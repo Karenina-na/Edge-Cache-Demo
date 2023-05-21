@@ -23,7 +23,7 @@ params = {'axes.titlesize': large,
           'figure.titlesize': large}
 plt.rcParams.update(params)
 
-plt.style.use('seaborn-whitegrid')
+# plt.style.use('seaborn-whitegrid')
 sns.set_style("white")
 
 print(np.__version__)
