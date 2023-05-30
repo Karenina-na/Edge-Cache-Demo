@@ -38,7 +38,7 @@ df = pd.concat([request_num, fifo, lfu, rc, dqn], axis=1)
 df.columns = ['step', 'FIFO', 'LFU', 'RC', 'DQN']
 
 # Define the upper limit, lower limit, interval of Y axis and colors
-y_LL = 9
+y_LL = 0
 y_UL = 91
 y_interval = 10
 my_colors = ['tab:red', 'tab:blue', 'tab:green', 'tab:orange', 'tab:brown']
@@ -56,11 +56,11 @@ for i, column in enumerate(columns):
 
 # Draw Tick lines
 for y in range(y_LL, y_UL, y_interval):
-    plt.hlines(y, xmin=0, xmax=request_num.iloc[-1].values[0] - 10, colors='black', alpha=0.3, linestyles="--", lw=0.5)
+    plt.hlines(y, xmin=0, xmax=request_num.iloc[-1].values[0] - 10, colors='black', alpha=0.3, linestyles="--", lw=1)
 
 # Draw Tick lines
 for x in range(0, request_num.iloc[-1].values[0], 10):
-    plt.axvline(x=x, ymin=0.01, ymax=0.99, color='black', alpha=0.3, linestyle="--", linewidth=0.5)
+    plt.axvline(x=x, ymin=0.01, ymax=0.99, color='black', alpha=0.3, linestyle="--", linewidth=1)
 
 # Decorations
 plt.tick_params(axis="both", which="both", bottom=False, top=False, labelbottom=True, left=False, right=False,
@@ -72,15 +72,17 @@ plt.gca().spines["bottom"].set_alpha(0.3)
 plt.gca().spines["right"].set_alpha(0.3)
 plt.gca().spines["left"].set_alpha(0.3)
 
-plt.yticks(range(y_LL, y_UL, y_interval), [str(y / 100) for y in range(y_LL, y_UL, y_interval)], fontsize=12)
+plt.yticks(range(y_LL, y_UL, y_interval), [str(y / 100) for y in range(y_LL, y_UL, y_interval)], fontsize=20)
 
 plt.xticks(range(0, request_num.iloc[-1].values[0], 10), df['step'].values[::1], horizontalalignment='left',
-           fontsize=12)
+           fontsize=20)
 plt.ylim(y_LL, y_UL)
 plt.xlim(-2, request_num.iloc[-1].values[0] - 7)
-plt.ylabel('The CHR of different algorithms', fontsize=14)
-plt.xlabel('The number of requests', fontsize=14)
+plt.gca().yaxis.set_label_coords(-0.09, 0.5)
+plt.gca().xaxis.set_label_coords(0.5, -0.09)
+plt.ylabel('CHR of different algorithms', fontsize=21)
+plt.xlabel('The number of requests', fontsize=21)
 
-plt.legend(loc='lower right', ncol=1, fontsize=12)
+plt.legend(loc='lower right', ncol=1, fontsize=18)
 plt.savefig("../../Result/images/CHR.png", dpi=300)
 plt.show()

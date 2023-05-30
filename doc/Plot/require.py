@@ -14,6 +14,10 @@ plt.rcParams['figure.facecolor'] = 'white'
 large = 22
 medium = 16
 small = 12
+
+# plt.style.use('seaborn-whitegrid')
+sns.set_style("white")
+
 params = {'axes.titlesize': large,
           'legend.fontsize': medium,
           'figure.figsize': (16, 10),
@@ -22,9 +26,6 @@ params = {'axes.titlesize': large,
           'ytick.labelsize': medium,
           'figure.titlesize': large}
 plt.rcParams.update(params)
-
-# plt.style.use('seaborn-whitegrid')
-sns.set_style("white")
 
 print(np.__version__)
 print(pd.__version__)

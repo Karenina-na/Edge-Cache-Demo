@@ -93,11 +93,11 @@ for i, column in enumerate(columns):
 
 # Draw Tick lines
 for y in range(y_LL, y_UL, y_interval):
-    plt.hlines(y, xmin=0, xmax=reward.shape[0] + 1, colors='black', alpha=0.3, linestyles="--", lw=0.5)
+    plt.hlines(y, xmin=0, xmax=reward.shape[0] + 1, colors='black', alpha=0.3, linestyles="--", lw=1)
 
 # Draw Tick lines
 for x in range(0, x.iloc[-1].values[0] + 10, 10):
-    plt.axvline(x=x, ymin=0, ymax=0.97, color='black', alpha=0.3, linestyle="--", linewidth=0.5)
+    plt.axvline(x=x, ymin=0, ymax=0.97, color='black', alpha=0.3, linestyle="--", linewidth=1)
 
 # Decorations
 plt.tick_params(axis="both", which="both", bottom=False, top=False, labelbottom=True, left=False, right=False,
@@ -109,13 +109,15 @@ plt.gca().spines["bottom"].set_alpha(0.3)
 plt.gca().spines["right"].set_alpha(0.3)
 plt.gca().spines["left"].set_alpha(0.3)
 
-plt.yticks(range(y_LL, y_UL, y_interval), [str(y) for y in range(y_LL, y_UL, y_interval)], fontsize=12)
-plt.xticks(range(0, df.shape[0], 5), df['step'].values[::5] * 100, horizontalalignment='left', fontsize=12)
+plt.yticks(range(y_LL, y_UL, y_interval), [str(y) for y in range(y_LL, y_UL, y_interval)], fontsize=26)
+plt.xticks(range(0, df.shape[0], 5), df['step'].values[::5] * 100, horizontalalignment='left', fontsize=26)
 plt.ylim(y_LL, y_UL)
 plt.xlim(-1, reward.shape[0] + 2)
-plt.ylabel('Reward', fontsize=14)
-plt.xlabel('Episode', fontsize=14)
+plt.gca().yaxis.set_label_coords(-0.08, 0.5)
+plt.gca().xaxis.set_label_coords(0.5, -0.08)
+plt.ylabel('Reward', fontsize=28)
+plt.xlabel('Episode', fontsize=28)
 
-plt.legend(loc='lower right', ncol=1, fontsize=12)
+plt.legend(loc='lower right', ncol=1, fontsize=24)
 plt.savefig("../../Result/images/Reward.png", dpi=300)
 plt.show()
